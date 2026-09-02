@@ -1,8 +1,12 @@
 "use client";
 
 import { Bell, CircleHelp, Search, Radio } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isConfiguration = pathname.includes("/configuracao");
+
   return (
     <div className="min-h-screen bg-surface text-ink">
       <header className="fixed left-0 right-0 top-0 z-30 h-[72px] border-b border-outline/30 bg-surface/90 backdrop-blur-md">
@@ -17,9 +21,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
             <nav className="mr-2 hidden h-full items-center gap-1 lg:flex" aria-label="Seções do painel">
-              <a href="/admin" className="flex h-[72px] items-center border-b-2 border-lime px-4 text-sm font-bold text-ink">Overview</a>
-              <a href="#analytics" className="flex h-[72px] items-center px-4 text-sm font-semibold text-ink-muted hover:text-ink">Analytics</a>
-              <a href="#reports" className="flex h-[72px] items-center px-4 text-sm font-semibold text-ink-muted hover:text-ink">Reports</a>
+              <a href="/admin" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${!isConfiguration ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Overview</a>
+              <a href="/admin/ideathons/hackathon-sustentabilidade-2024/configuracao" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${isConfiguration ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Configuração</a>
+              <a href="#analytics" className="flex h-[72px] items-center border-b-2 border-transparent px-4 text-sm font-semibold text-ink-muted transition-colors hover:text-ink">Analytics</a>
+              <a href="#reports" className="flex h-[72px] items-center border-b-2 border-transparent px-4 text-sm font-semibold text-ink-muted transition-colors hover:text-ink">Reports</a>
             </nav>
             <button type="button" className="hidden items-center gap-2 rounded-md px-2.5 py-2 text-sm font-bold text-ink hover:bg-surface-container sm:flex"><span className="size-2 rounded-full bg-danger" />Live View</button>
             <span className="mx-1 hidden h-8 w-px bg-outline/40 sm:block" />
