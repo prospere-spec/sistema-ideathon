@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Rocket, Zap } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -26,10 +27,10 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen bg-white lg:grid-cols-[minmax(480px,1fr)_minmax(520px,1fr)]">
       <section className="relative flex min-h-screen flex-col px-6 py-8 sm:px-10 lg:px-16 xl:px-[8.5vw]" aria-labelledby="login-title">
-        <a href="/login" className="inline-flex w-fit items-center gap-3 text-2xl font-bold tracking-[-0.05em] text-ink" aria-label="Revvolução, página inicial">
+        <Link href="/login" className="inline-flex w-fit items-center gap-3 text-2xl font-bold tracking-[-0.05em] text-ink" aria-label="Revvolução, página inicial">
           <span className="flex size-8 items-center justify-center text-lime-deep"><Zap className="size-8 fill-current" strokeWidth={2.5} /></span>
           <span>Revvolução</span>
-        </a>
+        </Link>
 
         <div className="flex flex-1 items-center py-16 lg:py-12">
           <div className="w-full max-w-[525px]">

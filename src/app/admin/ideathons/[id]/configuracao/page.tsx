@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldMessage, Input, Textarea } from "@/components/ui/field";
@@ -134,7 +135,7 @@ export default function EvaluationConfigurationPage() {
         <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
           <div>
             <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
-              <a href="/admin" className="transition-colors hover:text-ink">Eventos</a>
+              <Link href="/admin" className="transition-colors hover:text-ink">Eventos</Link>
               <ChevronRight className="size-3.5" aria-hidden="true" />
               <span className="truncate">Hackathon Sustentabilidade 2024</span>
             </div>

@@ -1,4 +1,5 @@
 import { CalendarDays, ClipboardCheck, Download, Lightbulb, MoreHorizontal, Rocket, UserRound, AlertTriangle, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ const columns: DataColumn<IdeathonRow>[] = [
   { key: "progress", header: "Progresso", className: "w-40", render: (row) => <ProgressBar value={row.progress} /> },
   { key: "ideas", header: "Ideias", className: "w-20", render: (row) => <span className="font-semibold">{row.ideas ?? "--"}</span> },
   { key: "status", header: "Status", render: (row) => <Badge tone={row.tone}>{row.status}</Badge> },
-   { key: "action", header: "", className: "text-right", render: (row) => <a href={`/admin/ideathons/${row.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-ink-muted hover:text-ink">Ver detalhes <ArrowRight className="size-3.5" /></a> },
+   { key: "action", header: "", className: "text-right", render: (row) => <Link href={`/admin/ideathons/${row.id}`} className="inline-flex items-center gap-1 text-xs font-bold text-ink-muted hover:text-ink">Ver detalhes <ArrowRight className="size-3.5" /></Link> },
 ];
 
 export default function AdminDashboard() {
