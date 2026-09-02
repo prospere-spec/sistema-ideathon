@@ -28,3 +28,16 @@ npm run build
 ```
 
 Esta etapa usa fixtures locais e nao possui banco, autenticacao ou persistencia. Esses recursos serao adicionados nas fases seguintes do plano do projeto.
+
+## Deploy na Vercel
+
+Se este projeto estiver dentro do repositorio completo do Brain Master, configure `cerebro/empresa/projetos/ideathon-management` como **Root Directory** nas configuracoes do projeto da Vercel. Se o repositorio contiver somente esta pasta, use `.`.
+
+Use estas configuracoes:
+
+- **Framework Preset:** `Next.js`
+- **Build Command:** `npm run build`
+- **Output Directory:** deixe vazio para a Vercel gerenciar o `.next`
+- **Install Command:** `npm install`
+
+Nao configure `public` como Output Directory. Essa pasta e usada por sites estaticos, enquanto o Next.js gera e gerencia a saida `.next` automaticamente.
