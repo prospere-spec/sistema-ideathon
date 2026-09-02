@@ -1,17 +1,23 @@
 "use client";
 
-import { Bell, CircleHelp, Search, Radio } from "lucide-react";
+import { Bell, CircleHelp, Search, Radio, Zap } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+type AppSection = "overview" | "configuration" | "analytics" | "reports";
+
+export function AppShell({ children, activeSection }: { children: React.ReactNode; activeSection?: AppSection }) {
   const pathname = usePathname();
-  const isConfiguration = pathname.includes("/configuracao");
+  const currentSection = activeSection || (pathname.includes("/configuracao") ? "configuration" : "overview");
 
   return (
     <div className="min-h-screen bg-surface text-ink">
       <header className="fixed left-0 right-0 top-0 z-30 h-[72px] border-b border-outline/30 bg-surface/90 backdrop-blur-md">
         <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-4">
+            <a href="/admin" className="hidden shrink-0 items-center gap-2 text-[22px] font-bold tracking-[-0.06em] text-ink md:flex" aria-label="Revvolução, painel administrativo">
+              <Zap className="size-5 fill-lime-deep text-lime-deep" strokeWidth={2.5} />
+              Revvolução
+            </a>
             <label className="relative hidden w-64 sm:block lg:w-72">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted/60" aria-hidden="true" />
               <span className="sr-only">Buscar ideathons</span>
@@ -21,10 +27,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
             <nav className="mr-2 hidden h-full items-center gap-1 lg:flex" aria-label="Seções do painel">
-              <a href="/admin" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${!isConfiguration ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Overview</a>
-              <a href="/admin/ideathons/hackathon-sustentabilidade-2024/configuracao" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${isConfiguration ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Configuração</a>
-              <a href="#analytics" className="flex h-[72px] items-center border-b-2 border-transparent px-4 text-sm font-semibold text-ink-muted transition-colors hover:text-ink">Analytics</a>
-              <a href="#reports" className="flex h-[72px] items-center border-b-2 border-transparent px-4 text-sm font-semibold text-ink-muted transition-colors hover:text-ink">Reports</a>
+              <a href="/admin" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${currentSection === "overview" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Overview</a>
+              <a href="/admin/ideathons/hackathon-sustentabilidade-2024/configuracao" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${currentSection === "configuration" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Configuração</a>
+              <a href="#analytics" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${currentSection === "analytics" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Analytics</a>
+              <a href="/admin/ideathons/fintech-2024/resultados" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors hover:text-ink ${currentSection === "reports" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted"}`}>Reports</a>
             </nav>
             <button type="button" className="hidden items-center gap-2 rounded-md px-2.5 py-2 text-sm font-bold text-ink hover:bg-surface-container sm:flex"><span className="size-2 rounded-full bg-danger" />Live View</button>
             <span className="mx-1 hidden h-8 w-px bg-outline/40 sm:block" />
