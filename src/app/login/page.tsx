@@ -4,16 +4,17 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, Rocket, Zap } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email.trim() || !password) {
       setError("Insira seu e-mail e sua senha para continuar.");
@@ -21,7 +22,26 @@ export default function LoginPage() {
     }
 
     setError("");
-    router.push("/admin");
+    setIsSubmitting(true);
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("E-mail ou senha inválidos.");
+        return;
+      }
+
+      router.push("/acesso");
+    } catch {
+      setError("Não foi possível conectar ao servidor.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -83,15 +103,10 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <label className="mt-6 flex w-fit cursor-pointer items-center gap-2.5 text-sm text-ink-muted">
-                <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="size-5 rounded border-outline bg-white text-primary accent-primary focus:ring-2 focus:ring-lime/50" />
-                <span>Lembrar-me neste dispositivo</span>
-              </label>
-
               {error ? <p className="mt-4 rounded-md bg-danger-soft/60 px-3 py-2 text-sm font-semibold text-danger" role="alert">{error}</p> : null}
 
-              <button type="submit" className="mt-7 flex min-h-14 w-full items-center justify-center gap-3 rounded-md bg-lime px-5 text-base font-bold text-lime-foreground shadow-[0_10px_25px_rgba(212,255,111,0.25)] transition-all hover:-translate-y-0.5 hover:bg-lime/85 hover:shadow-[0_14px_30px_rgba(212,255,111,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2">
-                Entrar no Dashboard
+              <button type="submit" disabled={isSubmitting} aria-busy={isSubmitting} className="mt-7 flex min-h-14 w-full items-center justify-center gap-3 rounded-md bg-lime px-5 text-base font-bold text-lime-foreground shadow-[0_10px_25px_rgba(212,255,111,0.25)] transition-all hover:-translate-y-0.5 hover:bg-lime/85 hover:shadow-[0_14px_30px_rgba(212,255,111,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
+                {isSubmitting ? "Entrando..." : "Entrar no Dashboard"}
                 <ArrowRight className="size-5" />
               </button>
             </form>

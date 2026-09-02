@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, CircleHelp, Search, Radio, Settings, Zap } from "lucide-react";
+import { Bell, CircleHelp, LogOut, Search, Radio, Settings, Zap } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 type AppSection = "overview" | "configuration" | "analytics" | "reports" | "dashboard" | "ideathons" | "users" | "settings";
 type AppNavigation = "panel" | "management";
@@ -47,7 +48,10 @@ export function AppShell({ children, activeSection, navigation = "panel", header
             <button type="button" className={`relative rounded-md p-2 hover:text-ink ${darkHeader ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-muted hover:bg-surface-container"}`} aria-label="Notificações"><Bell className="size-5" /><span className={`absolute right-2 top-1.5 size-2 rounded-full bg-danger ring-2 ${darkHeader ? "ring-black" : "ring-surface"}`} /></button>
             <button type="button" className={`hidden rounded-md p-2 sm:block ${darkHeader ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-muted hover:bg-surface-container hover:text-ink"}`} aria-label="Ajuda"><CircleHelp className="size-5" /></button>
             <button type="button" className={`hidden rounded-md p-2 sm:block ${darkHeader ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-muted hover:bg-surface-container hover:text-ink"}`} aria-label="Configurações da conta"><Settings className="size-5" /></button>
-            <span className="ml-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-primary-container text-xs font-bold text-lime shadow-sm">DP</span>
+             <button type="button" onClick={() => signOut({ callbackUrl: "/login" })} className="group ml-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-primary-container text-xs font-bold text-lime shadow-sm" aria-label="Sair da conta" title="Sair">
+               <span className="group-hover:hidden">DP</span>
+               <LogOut className="hidden size-4 group-hover:block" />
+             </button>
           </div>
         </div>
       </header>
