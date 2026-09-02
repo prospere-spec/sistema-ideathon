@@ -48,6 +48,7 @@ export default function UsersPage() {
 
   function openModal() {
     setNotice("");
+    setNewUser({ name: "", email: "", role: "Administrador", status: "Ativo" });
     setModalOpen(true);
   }
 
