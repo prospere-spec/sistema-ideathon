@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-surface: #f7f9fb;
+  --color-surface-dim: #d8dadc;
+  --color-surface-bright: #f7f9fb;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #46464b;
+  --color-inverse-surface: #2d3133;
+  --color-inverse-on-surface: #eff1f3;
+  --color-outline: #77767c;
+  --color-outline-variant: #c8c5cb;
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #1a1b22;
+  --color-secondary: #4d6700;
+  --color-secondary-container: #c7f263;
+  --color-on-secondary-fixed: #151f00;
+  --color-tertiary-container: #07006c;
+  --color-on-tertiary-container: #7073ff;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-surface);
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-jakarta), sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-secondary-container) 75%, #ffffff);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--color-secondary-container);
+  color: var(--color-on-secondary-fixed);
+}
