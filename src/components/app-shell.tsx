@@ -6,18 +6,19 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 type AppSection = "overview" | "configuration" | "analytics" | "reports" | "dashboard" | "ideathons" | "users" | "settings";
-type AppNavigation = "panel" | "management";
+type AppNavigation = "panel" | "management" | "evaluator";
 
 export function AppShell({ children, activeSection, navigation = "panel", headerAction, darkHeader = false }: { children: React.ReactNode; activeSection?: AppSection; navigation?: AppNavigation; headerAction?: React.ReactNode; darkHeader?: boolean }) {
   const pathname = usePathname();
   const currentSection = activeSection || (pathname.includes("/configuracao") ? "configuration" : "overview");
+  const homeHref = navigation === "evaluator" ? "/avaliador" : "/admin";
 
   return (
     <div className="min-h-screen bg-surface text-ink">
       <header className={`fixed left-0 right-0 top-0 z-30 h-[72px] border-b backdrop-blur-md ${darkHeader ? "border-white/10 bg-black/95 text-white" : "border-outline/30 bg-surface/90"}`}>
         <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-4">
-            <Link href="/admin" className={`hidden shrink-0 items-center gap-2 text-[22px] font-bold tracking-[-0.06em] md:flex ${darkHeader ? "text-lime-deep" : "text-ink"}`} aria-label="Revvolução, painel administrativo">
+            <Link href={homeHref} className={`hidden shrink-0 items-center gap-2 text-[22px] font-bold tracking-[-0.06em] md:flex ${darkHeader ? "text-lime-deep" : "text-ink"}`} aria-label="Revvolução, painel administrativo">
               <Zap className="size-5 fill-lime-deep text-lime-deep" strokeWidth={2.5} />
               Revvolução
             </Link>
@@ -30,16 +31,16 @@ export function AppShell({ children, activeSection, navigation = "panel", header
           </div>
           <div className="flex items-center gap-1 sm:gap-3">
             <nav className="mr-2 hidden h-full items-center gap-1 lg:flex" aria-label={navigation === "management" ? "Navegação administrativa" : "Seções do painel"}>
-              {navigation === "management" ? <>
+              {navigation === "evaluator" ? <Link href="/avaliador" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "ideathons" ? "border-lime font-bold text-lime-deep" : `border-transparent ${darkHeader ? "text-white/70 hover:text-white" : "text-ink-muted hover:text-ink"}`}`}>Minhas avaliações</Link> : navigation === "management" ? <>
                 <Link href="/admin" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "dashboard" ? "border-lime font-bold text-lime-deep" : `border-transparent ${darkHeader ? "text-white/70 hover:text-white" : "text-ink-muted hover:text-ink"}`}`}>Dashboard</Link>
                 <Link href="/admin/ideathons" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "ideathons" ? "border-lime font-bold text-lime-deep" : `border-transparent ${darkHeader ? "text-white/70 hover:text-white" : "text-ink-muted hover:text-ink"}`}`}>Ideathons</Link>
                 <Link href="/admin/usuarios" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "users" ? "border-lime font-bold text-lime-deep" : `border-transparent ${darkHeader ? "text-white/70 hover:text-white" : "text-ink-muted hover:text-ink"}`}`}>Users</Link>
                 <a href="#settings" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "settings" ? "border-lime font-bold text-lime-deep" : `border-transparent ${darkHeader ? "text-white/70 hover:text-white" : "text-ink-muted hover:text-ink"}`}`}>Settings</a>
               </> : <>
                 <Link href="/admin" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "overview" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>Overview</Link>
-                <Link href="/admin/ideathons/hackathon-sustentabilidade-2024/configuracao" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "configuration" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>Configuração</Link>
+                <Link href="/admin/ideathons" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "configuration" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>Configuração</Link>
                 <a href="#analytics" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "analytics" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>Analytics</a>
-                <Link href="/admin/ideathons/fintech-2024/resultados" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "reports" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>Reports</Link>
+                <Link href="/admin/ideathons" className={`flex h-[72px] items-center border-b-2 px-4 text-sm font-semibold transition-colors ${currentSection === "reports" ? "border-lime font-bold text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>Reports</Link>
               </>}
             </nav>
             {headerAction ? <div className="mr-1 hidden sm:block">{headerAction}</div> : null}
