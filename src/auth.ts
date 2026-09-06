@@ -13,7 +13,7 @@ const adapter = database ? DrizzleAdapter(database, { usersTable: users, account
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter,
   session: {
-    strategy: isDemoMode ? "jwt" : "database",
+    strategy: "jwt",
     maxAge: 8 * 60 * 60,
   },
   pages: {
@@ -55,11 +55,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async session({ session, user }) {
-      session.user.id = user.id;
-      session.user.role = user.role;
-      session.user.status = user.status;
-      session.user.mustChangePassword = user.mustChangePassword;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.status = user.status;
+        token.mustChangePassword = user.mustChangePassword;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      session.user.id = String(token.id);
+      session.user.role = token.role as "ADMIN" | "EVALUATOR";
+      session.user.status = token.status as "ACTIVE" | "INACTIVE";
+      session.user.mustChangePassword = Boolean(token.mustChangePassword);
       return session;
     },
   },
