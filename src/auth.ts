@@ -5,18 +5,15 @@ import Credentials from "next-auth/providers/credentials";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { accounts, sessions, users, verificationTokens } from "@/db/schema";
+import { demoUser, isDemoMode } from "@/lib/demo-mode";
 
-const database = getDb();
+const database = isDemoMode ? undefined : getDb();
+const adapter = database ? DrizzleAdapter(database, { usersTable: users, accountsTable: accounts, sessionsTable: sessions, verificationTokensTable: verificationTokens }) : undefined;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: DrizzleAdapter(database, {
-    usersTable: users,
-    accountsTable: accounts,
-    sessionsTable: sessions,
-    verificationTokensTable: verificationTokens,
-  }),
+  adapter,
   session: {
-    strategy: "database",
+    strategy: isDemoMode ? "jwt" : "database",
     maxAge: 8 * 60 * 60,
   },
   pages: {
@@ -34,6 +31,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const password = String(credentials?.password ?? "");
 
         if (!email || !password) return null;
+        if (isDemoMode) return email === demoUser.email && password === "demo123" ? demoUser : null;
+        if (!database) return null;
 
         const [user] = await database
           .select()

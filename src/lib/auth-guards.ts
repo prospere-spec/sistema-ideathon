@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
+import { demoRoleCookie, getDemoUser, isDemoMode } from "@/lib/demo-mode";
 
 type AppRole = "ADMIN" | "EVALUATOR";
 
 export async function requireUser(options: { allowPasswordChange?: boolean } = {}) {
+  if (isDemoMode) return getDemoUser((await cookies()).get(demoRoleCookie)?.value);
   const session = await auth();
 
   if (!session?.user || session.user.status !== "ACTIVE") {

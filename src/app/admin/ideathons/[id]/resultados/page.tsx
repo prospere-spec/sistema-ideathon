@@ -1,129 +1,124 @@
 "use client";
 
-import { useState } from "react";
-import { BarChart3, CheckCircle2, Clock3, Download, Filter, Lightbulb, Search, Timer, Users, type LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Clock3, Download, Filter, LoaderCircle, Search, Wifi, WifiOff } from "lucide-react";
+import { useParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 
-type ProjectStatus = "complete" | "progress";
+type RankingState = "PENDING" | "PARTIAL" | "COMPLETE";
+type RankingRow = { ideaId: string; ideaName: string; teamName: string; category: string | null; finalScore: number | null; expectedEvaluations: number; receivedEvaluations: number; completionPercent: number; state: RankingState; rank: number | null; criterionAverages: Array<{ criterionId: string; criterionName: string; average: number }>; lastUpdatedAt: string | null };
+type Phase = { id: string; name: string; position: number; status: string };
+type Summary = { totalIdeas: number; expectedEvaluations: number; receivedEvaluations: number; completionPercent: number; averageScore: number | null; updatedAt: string | null };
 
-type RankedProject = {
-  id: string;
-  rank: number;
-  name: string;
-  team: string;
-  status: ProjectStatus;
-  innovation: number;
-  impact: number;
-  finalScore: number;
-  partial?: boolean;
-};
-
-const projects: RankedProject[] = [
-  { id: "paystream-ai", rank: 1, name: "PayStream AI", team: "Equipe Alpha", status: "complete", innovation: 9.5, impact: 9.2, finalScore: 9.35 },
-  { id: "ecoinvest", rank: 2, name: "EcoInvest", team: "Green Finance", status: "complete", innovation: 8.8, impact: 9.5, finalScore: 9.15 },
-  { id: "blockledger", rank: 3, name: "BlockLedger", team: "Chain React", status: "progress", innovation: 9.0, impact: 8.9, finalScore: 8.95, partial: true },
-  { id: "microlend", rank: 4, name: "MicroLend", team: "Social Capital", status: "complete", innovation: 8.5, impact: 8.7, finalScore: 8.6 },
-  { id: "smartwallet", rank: 5, name: "SmartWallet", team: "Tech Savvy", status: "progress", innovation: 8.2, impact: 8.5, finalScore: 8.35, partial: true },
-];
-
-function StatCard({ label, value, suffix, icon: Icon, tone, children }: { label: string; value: string; suffix?: string; icon: LucideIcon; tone: "lime" | "indigo" | "neutral" | "danger"; children?: React.ReactNode }) {
-  const iconTone = { lime: "bg-lime/30 text-lime-deep", indigo: "bg-indigo/10 text-indigo-deep", neutral: "bg-surface-high text-ink", danger: "bg-danger-soft text-danger" }[tone];
-  return (
-    <article className="rounded-lg border border-black/[0.04] bg-white p-5 shadow-card sm:p-6">
-      <div className="flex items-start justify-between gap-4">
-        <h2 className="text-sm font-semibold text-ink-muted">{label}</h2>
-        <span className={`flex size-10 shrink-0 items-center justify-center rounded-md ${iconTone}`}><Icon className="size-5" /></span>
-      </div>
-      <div className="mt-7 flex items-baseline gap-2">
-        <span className="text-[2.5rem] font-bold leading-none tracking-[-0.06em] text-ink">{value}</span>
-        {suffix ? <span className="text-sm font-medium text-ink">{suffix}</span> : null}
-      </div>
-      {children ? <div className="mt-4">{children}</div> : null}
-    </article>
-  );
-}
-
-function RankMark({ rank }: { rank: number }) {
-  const tone = rank === 1 ? "bg-lime-deep text-white" : rank === 2 ? "bg-surface-high text-ink" : rank === 3 ? "bg-surface-container text-ink" : "bg-surface-low text-ink";
-  return <span className={`flex size-10 items-center justify-center rounded-full text-sm font-bold ${tone}`}>{rank}</span>;
-}
-
-function StatusIcon({ status }: { status: ProjectStatus }) {
-  return status === "complete"
-    ? <CheckCircle2 className="size-6 text-emerald-500" aria-label="Avaliação completa" />
-    : <Clock3 className="size-6 text-amber-500" aria-label="Avaliação em progresso" />;
-}
+const stateLabel: Record<RankingState, string> = { PENDING: "Pendente", PARTIAL: "Em progresso", COMPLETE: "Completa" };
 
 export default function RankingPage() {
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | ProjectStatus>("all");
+  const params = useParams<{ id: string }>();
+  const ideathonId = String(params.id);
+  const [phases, setPhases] = useState<Phase[]>([]);
+  const [phaseId, setPhaseId] = useState("");
+  const [phaseName, setPhaseName] = useState("Ranking do ideathon");
+  const [rows, setRows] = useState<RankingRow[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"ALL" | RankingState>("ALL");
   const [search, setSearch] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [connection, setConnection] = useState<"connected" | "offline" | "reconnecting">("reconnecting");
+  const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(true);
   const [exportNotice, setExportNotice] = useState("");
 
-  const visibleProjects = projects.filter((project) => {
-    const matchesStatus = statusFilter === "all" || project.status === statusFilter;
-    const normalizedSearch = search.trim().toLowerCase();
-    const matchesSearch = !normalizedSearch || `${project.name} ${project.team}`.toLowerCase().includes(normalizedSearch);
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      if (!navigator.onLine) {
+        if (active) setConnection("offline");
+        return;
+      }
+      if (active) setConnection((current) => current === "connected" ? current : "reconnecting");
+      try {
+        const query = phaseId ? `?phaseId=${encodeURIComponent(phaseId)}` : "";
+        const response = await fetch(`/api/admin/ideathons/${ideathonId}/results${query}`, { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Não foi possível carregar o ranking.");
+        if (!active) return;
+        setPhases(payload.phases);
+        setPhaseId((current: string) => current || payload.phase.id);
+        setPhaseName(payload.phase.name);
+        setRows(payload.data);
+        setSummary(payload.summary);
+        setNotice("");
+        setConnection("connected");
+      } catch (error) {
+        if (!active) return;
+        setConnection(navigator.onLine ? "reconnecting" : "offline");
+        setNotice(error instanceof Error ? error.message : "Não foi possível atualizar o ranking.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 5000);
+    const onOnline = () => void refresh();
+    const onOffline = () => setConnection("offline");
+    const onVisibility = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [ideathonId, phaseId]);
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleRows = rows.filter((row) => {
+    const matchesStatus = statusFilter === "ALL" || row.state === statusFilter;
+    const matchesSearch = !normalizedSearch || `${row.ideaName} ${row.teamName} ${row.category || ""}`.toLowerCase().includes(normalizedSearch);
     return matchesStatus && matchesSearch;
   });
 
-  function handleExport() {
-    setExportNotice("Exportação preparada para download.");
+  function connectionLabel() {
+    if (connection === "offline") return "Sem conexão, dados locais exibidos";
+    if (connection === "reconnecting") return "Reconectando...";
+    return "Atualização automática a cada 5s";
+  }
+
+  async function exportResults() {
+    try {
+      const query = phaseId ? `?phaseId=${encodeURIComponent(phaseId)}` : "";
+      const response = await fetch(`/api/admin/ideathons/${ideathonId}/results${query}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Não foi possível exportar o ranking.");
+      const csv = ["rank,ideia,equipe,status,avaliações,nota", ...payload.data.map((row: RankingRow) => [row.rank ?? "", row.ideaName, row.teamName, stateLabel[row.state], `${row.receivedEvaluations}/${row.expectedEvaluations}`, row.finalScore ?? ""].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))].join("\n");
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([`\ufeff${csv}\n`], { type: "text/csv;charset=utf-8" }));
+      link.download = `ranking-${ideathonId}.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      setExportNotice("Ranking exportado com sucesso.");
+    } catch (error) {
+      setExportNotice(error instanceof Error ? error.message : "Não foi possível exportar o ranking.");
+    }
   }
 
   return (
-    <AppShell activeSection="reports">
+    <AppShell navigation="management" activeSection="ideathons" darkHeader>
       <div className="mx-auto w-full max-w-container space-y-6 px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
-        <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
-          <div>
-            <h1 className="text-3xl font-bold tracking-[-0.055em] text-ink sm:text-4xl">Ranking em Tempo Real</h1>
-            <p className="mt-2 flex items-center gap-2 text-base text-ink-muted"><span className="size-2.5 rounded-full bg-emerald-500" />Ideathon Fintech 2024 - Atualizado agora</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setFiltersOpen((open) => !open)} className={`inline-flex min-h-11 items-center gap-2 rounded-md border px-4 text-sm font-semibold transition-colors ${filtersOpen ? "border-ink bg-surface-low" : "border-outline bg-white hover:bg-surface-low"}`} aria-expanded={filtersOpen}><Filter className="size-4" />Filtros</button>
-            <button type="button" onClick={handleExport} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-outline bg-white px-4 text-sm font-semibold transition-colors hover:bg-surface-low"><Download className="size-4" />Exportar</button>
-          </div>
-        </section>
-
-        {filtersOpen ? <section className="flex flex-col gap-3 rounded-lg border border-black/[0.04] bg-white p-4 shadow-card sm:flex-row sm:items-end" aria-label="Filtros do ranking">
-          <label className="flex-1 text-xs font-bold text-ink-muted">Buscar projeto ou equipe<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ex: PayStream" className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink placeholder:text-ink-muted/60 focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40" /></label>
-          <label className="w-full text-xs font-bold text-ink-muted sm:w-56">Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | ProjectStatus)} className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40"><option value="all">Todos os status</option><option value="complete">Avaliação completa</option><option value="progress">Em progresso</option></select></label>
-        </section> : null}
-
+        <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-lime-deep">{connection === "offline" ? <WifiOff className="size-3.5" /> : <Wifi className="size-3.5" />}{connectionLabel()}</p><h1 className="mt-2 text-3xl font-bold tracking-[-0.055em] text-ink sm:text-4xl">Ranking em Tempo Real</h1><p className="mt-2 text-base text-ink-muted">{phaseName}{summary?.updatedAt ? ` · atualizado ${new Date(summary.updatedAt).toLocaleTimeString("pt-BR")}` : ""}</p></div><div className="flex items-center gap-2"><button type="button" onClick={() => setFiltersOpen((open) => !open)} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-outline bg-white px-4 text-sm font-semibold hover:bg-surface-low" aria-expanded={filtersOpen}><Filter className="size-4" />Filtros</button><button type="button" onClick={() => void exportResults()} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-outline bg-white px-4 text-sm font-semibold hover:bg-surface-low"><Download className="size-4" />Exportar</button></div></section>
+        {notice ? <p className="rounded-md bg-danger-soft/60 px-4 py-3 text-sm font-semibold text-danger" role="alert">{notice}</p> : null}
         {exportNotice ? <p className="rounded-md bg-lime/30 px-4 py-3 text-sm font-semibold text-lime-deep" role="status">{exportNotice}</p> : null}
-
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo do ideathon">
-          <StatCard label="Projetos Ativos" value="24" suffix="/30" icon={Lightbulb} tone="neutral" />
-          <StatCard label="Média Global" value="8.4" icon={BarChart3} tone="lime"><span className="inline-flex rounded-full bg-lime/30 px-2 py-1 text-xs font-semibold text-lime-deep">+0.2h</span></StatCard>
-          <StatCard label="Jurados Concluídos" value="85%" icon={Users} tone="indigo"><ProgressBar value={85} showLabel={false} /></StatCard>
-          <StatCard label="Tempo Restante" value="02:15" suffix="hrs" icon={Timer} tone="danger" />
-        </section>
-
-        <section className="overflow-hidden rounded-lg border border-black/[0.04] bg-white shadow-card" aria-labelledby="ranking-title">
-          <div className="flex flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-            <div><h2 id="ranking-title" className="text-2xl font-medium tracking-[-0.04em] text-ink">Classificação Geral</h2><p className="mt-1 text-sm text-ink-muted">Acompanhe a posição dos projetos conforme as avaliações são concluídas.</p></div>
-            <div className="flex flex-wrap gap-2"><Badge tone="lime"><CheckCircle2 className="size-3.5" />Avaliação Completa</Badge><Badge tone="amber"><Clock3 className="size-3.5" />Em Progresso</Badge></div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[850px] border-collapse text-left">
-              <thead><tr className="bg-surface-low/60"><th className="px-5 py-4 text-xs font-semibold text-ink-muted sm:px-7">Rank</th><th className="px-5 py-4 text-xs font-semibold text-ink-muted">Nome da Ideia</th><th className="px-5 py-4 text-xs font-semibold text-ink-muted">Status</th><th className="px-5 py-4 text-right text-xs font-semibold text-ink-muted">Média Inovação</th><th className="px-5 py-4 text-right text-xs font-semibold text-ink-muted">Média Impacto</th><th className="px-5 py-4 text-right text-xs font-semibold text-ink-muted sm:px-7">Nota Final</th></tr></thead>
-              <tbody className="divide-y divide-outline/30">
-                {visibleProjects.map((project) => <tr key={project.id} className="transition-colors hover:bg-surface-low/50">
-                  <td className="px-5 py-4 sm:px-7"><RankMark rank={project.rank} /></td>
-                  <td className="px-5 py-4"><p className="font-bold text-ink">{project.name}</p><p className="mt-0.5 text-xs text-ink-muted">{project.team}</p></td>
-                  <td className="px-5 py-4"><StatusIcon status={project.status} /><span className="sr-only">{project.status === "complete" ? "Avaliação completa" : "Em progresso"}</span></td>
-                  <td className={`px-5 py-4 text-right text-sm ${project.partial ? "text-ink" : "text-ink"}`}>{project.innovation.toFixed(1)}{project.partial ? "*" : ""}</td>
-                  <td className="px-5 py-4 text-right text-sm">{project.impact.toFixed(1)}{project.partial ? "*" : ""}</td>
-                  <td className="px-5 py-4 text-right sm:px-7"><span className={`inline-flex rounded-md px-3 py-2 text-base font-bold ${project.rank === 1 ? "bg-lime text-ink" : "bg-surface-container text-ink"}`}>{project.finalScore.toFixed(2)}{project.partial ? "*" : ""}</span></td>
-                </tr>)}
-              </tbody>
-            </table>
-          </div>
-          {!visibleProjects.length ? <div className="px-6 py-12 text-center"><Search className="mx-auto size-7 text-ink-muted" /><p className="mt-3 text-sm font-semibold text-ink">Nenhum projeto encontrado</p><p className="mt-1 text-xs text-ink-muted">Ajuste os filtros para ver outros resultados.</p></div> : null}
-          <div className="border-t border-outline/30 bg-surface-low/40 px-5 py-4 text-center text-sm text-ink-muted sm:px-7">* Notas parciais sujeitas à alteração.</div>
-        </section>
+        {filtersOpen ? <section className="flex flex-col gap-3 rounded-lg border border-black/[0.04] bg-white p-4 shadow-card sm:flex-row sm:items-end" aria-label="Filtros do ranking"><label className="flex-1 text-xs font-bold text-ink-muted">Buscar ideia ou equipe<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ex: EcoTrack" className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40" /></label><label className="w-full text-xs font-bold text-ink-muted sm:w-56">Fase<select value={phaseId} onChange={(event) => setPhaseId(event.target.value)} className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40">{phases.map((phase) => <option key={phase.id} value={phase.id}>{phase.name}</option>)}</select></label><label className="w-full text-xs font-bold text-ink-muted sm:w-48">Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "ALL" | RankingState)} className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40"><option value="ALL">Todos</option><option value="PENDING">Pendentes</option><option value="PARTIAL">Em progresso</option><option value="COMPLETE">Completas</option></select></label></section> : null}
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo do ranking"><article className="rounded-lg border border-black/[0.04] bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Ideias na fase</p><p className="mt-5 text-4xl font-bold tracking-[-0.06em] text-ink">{summary?.totalIdeas ?? 0}</p></article><article className="rounded-lg border border-black/[0.04] bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Média global</p><p className="mt-5 text-4xl font-bold tracking-[-0.06em] text-ink">{summary?.averageScore?.toFixed(2) ?? "--"}</p></article><article className="rounded-lg border border-black/[0.04] bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Avaliações concluídas</p><p className="mt-5 text-4xl font-bold tracking-[-0.06em] text-ink">{summary?.completionPercent ?? 0}%</p><ProgressBar value={summary?.completionPercent ?? 0} showLabel={false} className="mt-4" /></article><article className="rounded-lg border border-black/[0.04] bg-primary p-5 text-white shadow-card"><p className="text-sm font-semibold text-white/60">Recebidas / esperadas</p><p className="mt-5 text-4xl font-bold tracking-[-0.06em] text-lime">{summary?.receivedEvaluations ?? 0} / {summary?.expectedEvaluations ?? 0}</p></article></section>
+        <section className="overflow-hidden rounded-lg border border-black/[0.04] bg-white shadow-card" aria-labelledby="ranking-title"><div className="flex items-center justify-between gap-4 border-b border-outline/30 px-5 py-6 sm:px-7"><div><h2 id="ranking-title" className="text-2xl font-medium tracking-[-0.04em] text-ink">Classificação Geral</h2><p className="mt-1 text-sm text-ink-muted">Somente avaliações enviadas participam da nota final.</p></div><div className="flex flex-wrap gap-2"><Badge tone="lime"><CheckCircle2 className="size-3.5" />{rows.filter((row) => row.state === "COMPLETE").length} completas</Badge><Badge tone="amber"><Clock3 className="size-3.5" />{rows.filter((row) => row.state === "PARTIAL").length} parciais</Badge></div></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] border-collapse text-left"><thead><tr className="bg-surface-low/60"><th className="px-5 py-4 text-xs font-semibold text-ink-muted sm:px-7">Rank</th><th className="px-5 py-4 text-xs font-semibold text-ink-muted">Nome da Ideia</th><th className="px-5 py-4 text-xs font-semibold text-ink-muted">Equipe</th><th className="px-5 py-4 text-xs font-semibold text-ink-muted">Status</th><th className="px-5 py-4 text-right text-xs font-semibold text-ink-muted">Avaliações</th><th className="px-5 py-4 text-right text-xs font-semibold text-ink-muted">Conclusão</th><th className="px-5 py-4 text-right text-xs font-semibold text-ink-muted sm:px-7">Nota Final</th></tr></thead><tbody className="divide-y divide-outline/30">{loading ? <tr><td colSpan={7} className="px-6 py-14 text-center text-sm text-ink-muted"><LoaderCircle className="mx-auto size-5 animate-spin" />Carregando ranking...</td></tr> : visibleRows.map((row) => <tr key={row.ideaId} className="transition-colors hover:bg-surface-low/50"><td className="px-5 py-4 text-sm font-bold text-ink sm:px-7">{row.rank ?? "--"}</td><td className="px-5 py-4"><p className="font-bold text-ink">{row.ideaName}</p><p className="mt-0.5 text-xs text-ink-muted">{row.category || "Sem categoria"}</p></td><td className="px-5 py-4 text-sm text-ink">{row.teamName}</td><td className="px-5 py-4"><Badge tone={row.state === "COMPLETE" ? "lime" : row.state === "PARTIAL" ? "amber" : "indigo"}>{stateLabel[row.state]}</Badge></td><td className="px-5 py-4 text-right text-sm text-ink">{row.receivedEvaluations} / {row.expectedEvaluations}</td><td className="px-5 py-4 text-right text-sm text-ink">{row.completionPercent}%</td><td className="px-5 py-4 text-right sm:px-7"><span className={`inline-flex min-w-16 justify-center rounded-md px-3 py-2 text-base font-bold ${row.finalScore === null ? "bg-surface-container text-ink-muted" : row.rank === 1 ? "bg-lime text-ink" : "bg-surface-container text-ink"}`}>{row.finalScore === null ? "--" : row.finalScore.toFixed(2)}</span></td></tr>)}</tbody></table></div>{!loading && !visibleRows.length ? <div className="px-6 py-12 text-center"><Search className="mx-auto size-7 text-ink-muted" /><p className="mt-3 text-sm font-semibold text-ink">Nenhuma ideia encontrada</p><p className="mt-1 text-xs text-ink-muted">Ajuste os filtros para ver outros resultados.</p></div> : null}</section>
       </div>
     </AppShell>
   );

@@ -1,0 +1,44 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { createDemoIdeathon, createDemoRoom, demoDashboard, getDemoAuditLogs, getDemoEvaluation, getDemoIdeathon, getDemoResults, getDemoRooms, patchDemoRoom, resetDemoState, saveDemoEvaluation, submitDemoEvaluation } from "./demo-store";
+
+describe("fluxo demo do administrador", () => {
+  beforeEach(() => resetDemoState());
+
+  it("cria um ideathon e permite navegar até o detalhe", () => {
+    const created = createDemoIdeathon({ name: "Novo desafio", slug: "novo-desafio", description: "Teste de fluxo" });
+
+    expect(created.status).toBe("DRAFT");
+    expect(getDemoIdeathon(created.id)?.name).toBe("Novo desafio");
+    expect(demoDashboard().data.some((event) => event.id === created.id)).toBe(true);
+  });
+
+  it("cria e atualiza uma sala mantendo o estado em memória", () => {
+    const room = createDemoRoom("demo-ideathon", { name: "Banca Sul", phaseId: "demo-phase" });
+    expect(room?.status).toBe("DRAFT");
+
+    const updated = patchDemoRoom("demo-ideathon", room!.id, { name: "Banca Sul 2", status: "READY" });
+    expect(updated).toMatchObject({ id: room!.id, name: "Banca Sul 2", status: "READY" });
+    expect(getDemoRooms("demo-ideathon")?.data.some((item) => item.id === room!.id && item.name === "Banca Sul 2")).toBe(true);
+  });
+
+  it("salva, envia uma avaliação e trata o reenvio de forma idempotente", () => {
+    const loaded = getDemoEvaluation("demo-phase", "demo-idea", "demo-evaluator");
+    expect("data" in loaded).toBe(true);
+    if (!("data" in loaded) || !loaded.data) return;
+    const scores = loaded.data.criteria.map((criterion, index) => ({ criterionId: criterion.id, score: index + 3 }));
+
+    const saved = saveDemoEvaluation("demo-phase", "demo-idea", "demo-evaluator", { scores, feedback: "Boa proposta." });
+    if (!("data" in saved) || !saved.data) return;
+    expect("saved" in saved.data && saved.data.saved).toBe(true);
+    const submitted = submitDemoEvaluation(loaded.data.evaluationId, "demo-evaluator", { scores, feedback: "Boa proposta." });
+    if (!("data" in submitted) || !submitted.data) return;
+    expect(submitted.data.idempotent).toBe(false);
+    const repeated = submitDemoEvaluation(loaded.data.evaluationId, "demo-evaluator", { scores, feedback: "Outro texto não deve substituir o envio." });
+
+    expect(repeated).toMatchObject({ data: { idempotent: true, finalScore: submitted.data.finalScore } });
+    const results = getDemoResults("demo-ideathon");
+    if (!("data" in results) || !results.data) return;
+    expect(results.data[0]).toMatchObject({ ideaId: "demo-idea", rank: 1, receivedEvaluations: 1, completionPercent: 100 });
+    expect(getDemoAuditLogs("demo-ideathon", { limit: 50, action: "EVALUATION_SUBMITTED", entityType: "EVALUATION" }).data).toHaveLength(1);
+  });
+});

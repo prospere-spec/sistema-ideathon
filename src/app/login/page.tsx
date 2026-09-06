@@ -13,7 +13,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email.trim() || !password) {
@@ -25,6 +24,19 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
+      const demoResponse = await fetch("/api/demo-mode", { cache: "no-store" });
+      const demoPayload = await demoResponse.json() as { demo?: boolean };
+      if (demoPayload.demo) {
+        const normalizedEmail = email.trim().toLowerCase();
+        const role = normalizedEmail === "admin@demo.local" ? "ADMIN" : normalizedEmail === "avaliador@demo.local" ? "EVALUATOR" : null;
+        if (!role || password !== "demo123") {
+          setError("Use admin@demo.local ou avaliador@demo.local com a senha demo123.");
+          return;
+        }
+        document.cookie = `ideathon-demo-role=${role}; Path=/; SameSite=Lax`;
+        window.location.assign(role === "ADMIN" ? "/admin" : "/avaliador");
+        return;
+      }
       const result = await signIn("credentials", {
         email,
         password,
@@ -106,7 +118,7 @@ export default function LoginPage() {
               {error ? <p className="mt-4 rounded-md bg-danger-soft/60 px-3 py-2 text-sm font-semibold text-danger" role="alert">{error}</p> : null}
 
               <button type="submit" disabled={isSubmitting} aria-busy={isSubmitting} className="mt-7 flex min-h-14 w-full items-center justify-center gap-3 rounded-md bg-lime px-5 text-base font-bold text-lime-foreground shadow-[0_10px_25px_rgba(212,255,111,0.25)] transition-all hover:-translate-y-0.5 hover:bg-lime/85 hover:shadow-[0_14px_30px_rgba(212,255,111,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60">
-                {isSubmitting ? "Entrando..." : "Entrar no Dashboard"}
+                 {isSubmitting ? "Entrando..." : "Entrar no painel"}
                 <ArrowRight className="size-5" />
               </button>
             </form>
@@ -124,7 +136,7 @@ export default function LoginPage() {
 
         <div className="absolute left-[14%] top-[14%] h-[62%] w-[78%] rotate-[-4deg] rounded-2xl border border-white/10 bg-white/[0.035] p-5 shadow-2xl blur-[1px]">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-lime" /><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Overview</span></div>
+             <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-lime" /><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Visão geral</span></div>
             <div className="flex gap-2"><span className="size-2 rounded-full bg-white/20" /><span className="size-2 rounded-full bg-white/20" /><span className="size-2 rounded-full bg-white/20" /></div>
           </div>
           <div className="mt-7 grid grid-cols-3 gap-3">
