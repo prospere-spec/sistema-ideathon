@@ -53,5 +53,5 @@ export async function POST(request: Request) {
     })
     .where(eq(users.id, session.user.id));
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, email: session.user.email, role: session.user.role });
 }
