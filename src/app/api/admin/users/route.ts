@@ -1,10 +1,10 @@
-import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { asc, eq } from "drizzle-orm";
 import { hash } from "bcryptjs";
 import { getDb } from "@/db";
 import { auditLogs, users } from "@/db/schema";
 import { requireAdminApi } from "@/lib/api-auth";
+import { generateTemporaryPassword } from "@/lib/temporary-password";
 
 export async function GET() {
   const { response } = await requireAdminApi();
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const role = body.role === "ADMIN" ? "ADMIN" : "EVALUATOR";
   const status = body.status === "INACTIVE" ? "INACTIVE" : "ACTIVE";
   if (name.length < 2 || !email.includes("@")) return NextResponse.json({ error: "Informe nome e e-mail válidos." }, { status: 422 });
-  const temporaryPassword = randomBytes(9).toString("base64url");
+  const temporaryPassword = generateTemporaryPassword();
   const db = getDb();
   try {
     const [created] = await db.insert(users).values({ name, email, role, status, passwordHash: await hash(temporaryPassword, 12), mustChangePassword: true }).returning({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt });

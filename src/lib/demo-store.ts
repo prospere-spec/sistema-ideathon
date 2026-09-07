@@ -10,7 +10,7 @@ type DemoRoom = { id: string; name: string; position: number; status: DemoStatus
 type DemoIdeathon = { id: string; name: string; slug: string; description: string; status: DemoStatus; timezone: string; startsAt: string | null; endsAt: string | null; phases: DemoPhase[]; ideas: DemoIdea[]; rooms: DemoRoom[] };
 type DemoEvaluation = { id: string; ideathonId: string; phaseId: string; ideaId: string; roomId: string; evaluatorId: string; status: EvaluationStatus; feedback: string | null; finalScore: string | null; submittedAt: string | null; updatedAt: string; scores: Record<string, number> };
 type DemoAuditLog = { id: string; action: string; entityType: string; entityId: string; metadata: Record<string, unknown>; createdAt: string; actor: string; actorEmail: string };
-type DemoState = { ideathons: DemoIdeathon[]; criteria: Record<string, DemoCriterion[]>; evaluations: DemoEvaluation[]; auditLogs: DemoAuditLog[]; nextIdeathon: number; nextRoom: number; nextEvaluation: number; nextAudit: number };
+type DemoState = { ideathons: DemoIdeathon[]; criteria: Record<string, DemoCriterion[]>; evaluations: DemoEvaluation[]; auditLogs: DemoAuditLog[]; nextIdeathon: number; nextPhase: number; nextRoom: number; nextEvaluation: number; nextAudit: number };
 
 const demoAdmin = { name: "Administrador Demo", email: "admin@demo.local" };
 const demoEvaluator = { name: "Avaliador Demo", email: "avaliador@demo.local" };
@@ -19,6 +19,7 @@ const now = () => new Date().toISOString();
 
 const initialState = (): DemoState => ({
   nextIdeathon: 1,
+  nextPhase: 1,
   nextRoom: 2,
   nextEvaluation: 1,
   nextAudit: 1,
@@ -117,7 +118,7 @@ export function listDemoIdeathons() {
 export function createDemoIdeathon(input: { name: string; slug: string; description?: string }) {
   const current = state();
   const sequence = current.nextIdeathon++;
-  const phaseId = `demo-phase-${sequence}`;
+  const phaseId = `demo-phase-${current.nextPhase++}`;
   const event: DemoIdeathon = { id: `demo-ideathon-${sequence}`, name: input.name, slug: input.slug, description: input.description || "", status: "DRAFT", timezone: "America/Sao_Paulo", startsAt: null, endsAt: null, phases: [{ id: phaseId, name: "Fase inicial", position: 1, status: "DRAFT", startsAt: null, endsAt: null }], ideas: [], rooms: [] };
   current.criteria[phaseId] = [{ id: `demo-criterion-${sequence}-impact`, name: "Impacto", description: "Potencial de impacto da solução.", position: 1, weight: 40 }, { id: `demo-criterion-${sequence}-innovation`, name: "Inovação", description: "Originalidade da proposta.", position: 2, weight: 35 }, { id: `demo-criterion-${sequence}-feasibility`, name: "Viabilidade", description: "Capacidade de execução.", position: 3, weight: 25 }];
   current.ideathons.unshift(event);
@@ -174,6 +175,48 @@ export function deleteDemoRoom(id: string, roomId: string) {
   event.rooms.splice(index, 1);
   audit(id, "ROOM_DELETED", "ROOM", roomId, {});
   return { id: roomId, deleted: true };
+}
+
+export function getDemoPhases(id: string) {
+  const event = eventById(id);
+  return event ? { ideathon: listItem(event), data: event.phases } : null;
+}
+
+export function createDemoPhase(id: string, input: { name: string; position?: number }) {
+  const event = eventById(id);
+  if (!event) return null;
+  const current = state();
+  const sequence = current.nextPhase++;
+  const phaseId = `demo-phase-${sequence}`;
+  const phase: DemoPhase = { id: phaseId, name: input.name, position: input.position ?? event.phases.length, status: "DRAFT", startsAt: null, endsAt: null };
+  event.phases.push(phase);
+  current.criteria[phaseId] = [{ id: `demo-criterion-${sequence}-impact`, name: "Impacto", description: "Potencial de impacto da solução.", position: 1, weight: 40 }, { id: `demo-criterion-${sequence}-innovation`, name: "Inovação", description: "Originalidade da proposta.", position: 2, weight: 35 }, { id: `demo-criterion-${sequence}-feasibility`, name: "Viabilidade", description: "Capacidade de execução.", position: 3, weight: 25 }];
+  audit(id, "PHASE_CREATED", "PHASE", phaseId, { phaseId });
+  return phase;
+}
+
+export function patchDemoPhase(id: string, phaseId: string, input: { name?: string; position?: number; status?: DemoStatus }) {
+  const event = eventById(id);
+  const phase = event?.phases.find((item) => item.id === phaseId);
+  if (!event || !phase) return null;
+  if (input.status === "LIVE") for (const other of event.phases) if (other.id !== phaseId && other.status === "LIVE") other.status = "READY";
+  if (input.name !== undefined) phase.name = input.name;
+  if (input.position !== undefined) phase.position = input.position;
+  if (input.status !== undefined) phase.status = input.status;
+  audit(id, phase.status === "LIVE" ? "PHASE_STARTED" : phase.status === "CLOSED" ? "PHASE_CLOSED" : "PHASE_UPDATED", "PHASE", phaseId, { phaseId, status: phase.status });
+  return phase;
+}
+
+export function deleteDemoPhase(id: string, phaseId: string) {
+  const event = eventById(id);
+  if (!event) return null;
+  const phase = event.phases.find((item) => item.id === phaseId);
+  if (!phase || phase.status === "LIVE" || phase.status === "CLOSED") return null;
+  if (state().evaluations.some((evaluation) => evaluation.phaseId === phaseId)) return null;
+  event.phases = event.phases.filter((item) => item.id !== phaseId);
+  delete state().criteria[phaseId];
+  audit(id, "PHASE_DELETED", "PHASE", phaseId, { phaseId });
+  return { id: phaseId, deleted: true };
 }
 
 export function getDemoEvaluatorAssignments(evaluatorId: string) {

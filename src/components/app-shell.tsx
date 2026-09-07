@@ -25,6 +25,7 @@ export function AppShell({ children, activeSection, navigation = "panel", header
   const ideathonId = navigation === "management" ? pathname.match(/^\/admin\/ideathons\/([^/]+)/)?.[1] : undefined;
   const contextLinks = ideathonId ? [
     { href: `/admin/ideathons/${ideathonId}`, label: "Resumo" },
+    { href: `/admin/ideathons/${ideathonId}/fases`, label: "Fases" },
     { href: `/admin/ideathons/${ideathonId}/projetos`, label: "Ideias" },
     { href: `/admin/ideathons/${ideathonId}/salas`, label: "Salas" },
     { href: `/admin/ideathons/${ideathonId}/avaliadores`, label: "Avaliadores" },
