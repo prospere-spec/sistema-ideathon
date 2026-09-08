@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
-import { ideas, phaseIdeas, phases, roomEvaluators, rooms, teams } from "@/db/schema";
+import { evaluations, ideas, phaseIdeas, phases, roomEvaluators, rooms, teams } from "@/db/schema";
 import { requireEvaluatorApi } from "@/lib/api-auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { getDemoEvaluatorIdeas } from "@/lib/demo-store";
@@ -40,6 +40,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
       roomId: rooms.id,
       roomName: rooms.name,
       roomStatus: rooms.status,
+      presentationOrder: phaseIdeas.presentationOrder,
+      evaluationStatus: evaluations.status,
       participationStatus: phaseIdeas.status,
     })
     .from(phaseIdeas)
@@ -47,8 +49,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
     .innerJoin(teams, eq(teams.id, ideas.teamId))
     .innerJoin(rooms, and(eq(rooms.id, phaseIdeas.roomId), eq(rooms.phaseId, phaseId)))
     .innerJoin(roomEvaluators, and(eq(roomEvaluators.roomId, rooms.id), eq(roomEvaluators.evaluatorId, user.id)))
+    .leftJoin(evaluations, and(eq(evaluations.phaseIdeaId, phaseIdeas.id), eq(evaluations.evaluatorId, user.id)))
     .where(and(eq(phaseIdeas.phaseId, phaseId), ne(phaseIdeas.status, "ELIMINATED"), eq(ideas.status, "ACTIVE"), eq(rooms.status, "LIVE")))
-    .orderBy(asc(rooms.position), asc(phaseIdeas.createdAt));
+    .orderBy(asc(rooms.position), asc(phaseIdeas.presentationOrder), asc(phaseIdeas.createdAt));
 
   return NextResponse.json({ phase, data });
 }

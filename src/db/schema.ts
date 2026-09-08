@@ -176,6 +176,7 @@ export const phaseIdeas = pgTable("phase_ideas", {
   roomId: uuid("room_id").references(() => rooms.id),
   status: phaseIdeaStatusEnum("status").notNull().default("PENDING"),
   rank: integer("rank"),
+  presentationOrder: integer("presentation_order"),
   sourcePhaseIdeaId: uuid("source_phase_idea_id").references((): AnyPgColumn => phaseIdeas.id),
   selectedBy: uuid("selected_by").references(() => users.id),
   selectedAt: timestamp("selected_at", { withTimezone: true }),
@@ -183,8 +184,10 @@ export const phaseIdeas = pgTable("phase_ideas", {
 }, (table) => [
   uniqueIndex("phase_ideas_phase_idea_unique").on(table.phaseId, table.ideaId),
   index("phase_ideas_phase_room_idx").on(table.phaseId, table.roomId),
+  index("phase_ideas_room_presentation_order_idx").on(table.roomId, table.presentationOrder),
   index("phase_ideas_source_idx").on(table.sourcePhaseIdeaId),
   check("phase_ideas_rank_positive_check", sql`${table.rank} is null or ${table.rank} > 0`),
+  check("phase_ideas_presentation_order_positive_check", sql`${table.presentationOrder} is null or ${table.presentationOrder} > 0`),
 ]);
 
 export const roomEvaluators = pgTable("room_evaluators", {

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Download, List, LoaderCircle, Save, Send, Type, Wifi, WifiOff } from "lucide-react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 type Criterion = { id: string; name: string; description: string; position: number; weight: number };
 type Idea = { id: string; name: string; problem: string; solution: string; audience: string | null; differentiation: string | null; category: string | null; pitchDeckUrl: string | null; videoPitchUrl: string | null; websiteUrl: string | null; teamName: string };
 type EvaluationData = { evaluationId: string; status: "DRAFT" | "SUBMITTED"; feedback: string | null; finalScore: string | null; submittedAt: string | null; updatedAt: string | null; idea: Idea; criteria: Criterion[]; scores: Array<{ criterionId: string; score: number }> };
+type EvaluationQueueItem = { ideaId: string; roomId: string; roomName: string; presentationOrder: number | null; evaluationStatus: "DRAFT" | "SUBMITTED" | null };
 type Draft = { scores: Record<string, number>; feedback: string; savedAt: number };
 
 function ScoreRail({ name, value, disabled, onChange }: { name: string; value?: number; disabled?: boolean; onChange: (value: number) => void }) {
@@ -21,6 +22,7 @@ const localKey = (phaseId: string, ideaId: string) => `ideathon:evaluation:${pha
 
 export default function EvaluatorVotingPage() {
   const params = useParams<{ id: string; ideaId: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const ideathonId = String(params.id);
   const ideaId = String(params.ideaId);
@@ -28,6 +30,7 @@ export default function EvaluatorVotingPage() {
   const [phaseId, setPhaseId] = useState(requestedPhaseId);
   const [phaseName, setPhaseName] = useState("Fase de avaliação");
   const [data, setData] = useState<EvaluationData | null>(null);
+  const [evaluationQueue, setEvaluationQueue] = useState<EvaluationQueueItem[]>([]);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [feedback, setFeedback] = useState("");
   const [notice, setNotice] = useState("");
@@ -52,7 +55,8 @@ export default function EvaluatorVotingPage() {
         const ideasResponse = await fetch(`/api/evaluator/phases/${selectedPhase.id}/ideas`, { cache: "no-store" });
         const ideasPayload = await ideasResponse.json();
         if (!ideasResponse.ok) throw new Error(ideasPayload.error || "Não foi possível carregar as ideias.");
-        if (!ideasPayload.data.some((idea: { ideaId: string }) => idea.ideaId === ideaId)) throw new Error("Esta ideia não está atribuída à sua sala.");
+        const queue = ideasPayload.data as EvaluationQueueItem[];
+        if (!queue.some((idea) => idea.ideaId === ideaId)) throw new Error("Esta ideia não está atribuída à sua sala.");
         const evaluationResponse = await fetch(`/api/evaluator/phases/${selectedPhase.id}/ideas/${ideaId}/evaluation`, { cache: "no-store" });
         const evaluationPayload = await evaluationResponse.json();
         if (!evaluationResponse.ok) throw new Error(evaluationPayload.error || "Não foi possível carregar a avaliação.");
@@ -73,6 +77,7 @@ export default function EvaluatorVotingPage() {
         const loadedFeedback = useLocal && localDraft ? localDraft.feedback : evaluation.feedback || "";
         setPhaseId(selectedPhase.id);
         setPhaseName(selectedPhase.name);
+        setEvaluationQueue(queue);
         setData(evaluation);
         setScores(loadedScores);
         setFeedback(loadedFeedback);
@@ -178,6 +183,12 @@ export default function EvaluatorVotingPage() {
       pendingDraft.current = null;
       setSaveState("saved");
       setNotice(payload.data.idempotent ? "Esta avaliação já havia sido enviada." : "Avaliação enviada com sucesso.");
+      const current = evaluationQueue.find((item) => item.ideaId === ideaId);
+      const roomIdeas = current ? evaluationQueue.filter((item) => item.roomId === current.roomId) : [];
+      const currentIndex = roomIdeas.findIndex((item) => item.ideaId === ideaId);
+      const next = currentIndex >= 0 ? roomIdeas.slice(currentIndex + 1).find((item) => item.evaluationStatus !== "SUBMITTED") : undefined;
+      if (next) router.replace(`/avaliador/ideathons/${ideathonId}/ideias/${next.ideaId}?phaseId=${phaseId}`);
+      else router.replace("/avaliador");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Não foi possível enviar a avaliação.");
     } finally {
@@ -192,9 +203,12 @@ export default function EvaluatorVotingPage() {
   const progress = Math.round((answered / data.criteria.length) * 100);
   const readOnly = data.status === "SUBMITTED";
   const saveLabel = connection === "offline" ? "Sem conexão" : saveState === "saving" ? "Salvando..." : saveState === "queued" ? "Pendente" : "Salvo";
+  const currentQueueItem = evaluationQueue.find((item) => item.ideaId === ideaId);
+  const roomQueue = currentQueueItem ? evaluationQueue.filter((item) => item.roomId === currentQueueItem.roomId) : [];
+  const queuePosition = roomQueue.findIndex((item) => item.ideaId === ideaId) + 1;
 
   return <AppShell navigation="evaluator" activeSection="ideathons"><div className="mx-auto w-full max-w-container space-y-6 px-4 py-7 sm:px-6 lg:px-8 lg:py-9">
-    <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div><div className="mb-3 flex flex-wrap items-center gap-3"><Badge tone={readOnly ? "indigo" : "lime"} className="rounded-sm px-2.5 py-1 uppercase tracking-[0.1em]">{readOnly ? "Enviada" : "Em avaliação"}</Badge><span className="text-sm font-semibold text-ink-muted">{phaseName}</span></div><h1 className="text-2xl font-semibold tracking-[-0.04em] text-ink sm:text-3xl">Painel do Avaliador - {data.idea.name}</h1><p className="mt-2 max-w-3xl text-base leading-7 text-ink-muted">{data.idea.solution}</p></div><div className="flex flex-wrap items-center gap-3 xl:pb-1"><div className="flex items-center gap-2 text-sm text-ink-muted">{connection === "offline" ? <WifiOff className="size-4 text-danger" /> : <Wifi className="size-4 text-lime-deep" />}Progresso: {progress}%</div><span className="text-xs font-semibold text-ink-muted">{saveLabel}</span><Button type="button" variant="secondary" disabled={readOnly || saveState === "saving"} onClick={() => void saveDraft()}><Save className="size-4" />Salvar rascunho</Button><Button type="button" disabled={readOnly || submitting} onClick={() => void submitEvaluation()}><Send className="size-4" />{submitting ? "Enviando..." : "Enviar avaliação"}</Button></div></section>
+     <section className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between"><div><div className="mb-3 flex flex-wrap items-center gap-3"><Badge tone={readOnly ? "indigo" : "lime"} className="rounded-sm px-2.5 py-1 uppercase tracking-[0.1em]">{readOnly ? "Enviada" : "Em avaliação"}</Badge><span className="text-sm font-semibold text-ink-muted">{phaseName}</span>{queuePosition > 0 ? <span className="rounded-full bg-surface-container px-3 py-1 text-xs font-bold text-ink-muted">Avaliação {queuePosition} de {roomQueue.length} · {currentQueueItem?.roomName}</span> : null}</div><h1 className="text-2xl font-semibold tracking-[-0.04em] text-ink sm:text-3xl">Painel do Avaliador - {data.idea.name}</h1><p className="mt-2 max-w-3xl text-base leading-7 text-ink-muted">{data.idea.solution}</p></div><div className="flex flex-wrap items-center gap-3 xl:pb-1"><div className="flex items-center gap-2 text-sm text-ink-muted">{connection === "offline" ? <WifiOff className="size-4 text-danger" /> : <Wifi className="size-4 text-lime-deep" />}Progresso: {progress}%</div><span className="text-xs font-semibold text-ink-muted">{saveLabel}</span><Button type="button" variant="secondary" disabled={readOnly || saveState === "saving"} onClick={() => void saveDraft()}><Save className="size-4" />Salvar rascunho</Button><Button type="button" disabled={readOnly || submitting} onClick={() => void submitEvaluation()}><Send className="size-4" />{submitting ? "Enviando..." : "Enviar avaliação"}</Button></div></section>
     {notice ? <p className={`rounded-md px-4 py-3 text-sm font-semibold ${notice.includes("sucesso") || notice.includes("salvo") || notice.includes("enviada") ? "bg-lime/30 text-lime-deep" : "bg-danger-soft/60 text-danger"}`} role="status">{notice}</p> : null}
     <ProgressBar value={progress} showLabel={false} />
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(330px,0.34fr)_minmax(0,1fr)]"><aside className="overflow-hidden rounded-lg border border-black/[0.04] bg-white shadow-card"><div className="relative h-56 overflow-hidden bg-[#dfe8e7]"><div className="absolute inset-0 bg-[radial-gradient(circle_at_55%_50%,rgba(212,255,111,0.78),transparent_12%),radial-gradient(circle_at_42%_55%,rgba(27,141,143,0.72),transparent_21%),linear-gradient(135deg,#f1f4ef_0%,#b8d3ce_42%,#396f85_70%,#e6ece5_100%)] opacity-90" /></div><div className="p-6"><h2 className="text-xl font-semibold tracking-[-0.03em] text-ink">Visão geral</h2><div className="mt-6 space-y-5"><div><p className="text-sm text-ink-muted">Equipe</p><p className="mt-2 text-base font-medium text-ink">{data.idea.teamName}</p></div><div><p className="text-sm text-ink-muted">Categoria</p><span className="mt-2 inline-flex rounded-full bg-surface-container px-3 py-1.5 text-sm font-medium text-ink">{data.idea.category || "Sem categoria"}</span></div><div><p className="text-sm text-ink-muted">Problema</p><p className="mt-2 text-sm leading-6 text-ink">{data.idea.problem}</p></div><div><p className="text-sm text-ink-muted">Público</p><p className="mt-2 text-sm leading-6 text-ink">{data.idea.audience || "Não informado"}</p></div></div>{data.idea.pitchDeckUrl ? <div className="mt-5 border-t border-outline/30 pt-5"><a href={data.idea.pitchDeckUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-base font-medium text-indigo-deep transition-colors hover:text-indigo"><Download className="size-4" />Baixar Pitch Deck</a></div> : null}</div></aside>

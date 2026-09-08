@@ -222,7 +222,8 @@ export function deleteDemoPhase(id: string, phaseId: string) {
 export function getDemoEvaluatorAssignments(evaluatorId: string) {
   return state().ideathons.flatMap((event) => event.phases.filter((phase) => phase.status === "LIVE").flatMap((phase) => event.rooms.filter((room) => room.phaseId === phase.id && room.status === "LIVE" && room.evaluatorIds.includes(evaluatorId)).flatMap((room) => room.ideaIds.flatMap((ideaId) => {
     const idea = event.ideas.find((item) => item.id === ideaId && item.status === "ACTIVE");
-    return idea ? [{ ideathonId: event.id, ideathonName: event.name, phaseId: phase.id, phaseName: phase.name, ideaId: idea.id, ideaName: idea.name, teamName: idea.teamName, roomName: room.name }] : [];
+    const evaluationStatus = state().evaluations.find((evaluation) => evaluation.phaseId === phase.id && evaluation.ideaId === ideaId && evaluation.evaluatorId === evaluatorId)?.status || null;
+    return idea ? [{ ideathonId: event.id, ideathonName: event.name, phaseId: phase.id, phaseName: phase.name, ideaId: idea.id, ideaName: idea.name, teamName: idea.teamName, roomId: room.id, roomName: room.name, presentationOrder: room.ideaIds.indexOf(idea.id) + 1, evaluationStatus }] : [];
   }))));
 }
 
@@ -235,7 +236,7 @@ export function getDemoEvaluatorIdeas(phaseId: string, evaluatorId: string) {
   const assignments = getDemoEvaluatorAssignments(evaluatorId).filter((assignment) => assignment.phaseId === phaseId);
   const event = assignments[0] ? eventById(assignments[0].ideathonId) : null;
   const phase = event?.phases.find((item) => item.id === phaseId);
-  return event && phase ? { phase: { id: phase.id, ideathonId: event.id, name: phase.name, status: phase.status }, data: assignments.map((assignment) => { const idea = event.ideas.find((item) => item.id === assignment.ideaId)!; const room = event.rooms.find((item) => item.phaseId === phaseId && item.name === assignment.roomName); return { phaseIdeaId: `${phaseId}:${assignment.ideaId}`, ideaId: idea.id, name: idea.name, problem: idea.problem, solution: idea.solution, audience: idea.audience, differentiation: idea.differentiation, category: idea.category, pitchDeckUrl: idea.pitchDeckUrl, videoPitchUrl: idea.videoPitchUrl, websiteUrl: idea.websiteUrl, teamId: idea.teamId, teamName: idea.teamName, roomId: room?.id || "demo-room", roomName: assignment.roomName, roomStatus: "LIVE", participationStatus: "ACTIVE" }; }) } : null;
+  return event && phase ? { phase: { id: phase.id, ideathonId: event.id, name: phase.name, status: phase.status }, data: assignments.map((assignment) => { const idea = event.ideas.find((item) => item.id === assignment.ideaId)!; return { phaseIdeaId: `${phaseId}:${assignment.ideaId}`, ideaId: idea.id, name: idea.name, problem: idea.problem, solution: idea.solution, audience: idea.audience, differentiation: idea.differentiation, category: idea.category, pitchDeckUrl: idea.pitchDeckUrl, videoPitchUrl: idea.videoPitchUrl, websiteUrl: idea.websiteUrl, teamId: idea.teamId, teamName: idea.teamName, roomId: assignment.roomId, roomName: assignment.roomName, roomStatus: "LIVE", presentationOrder: assignment.presentationOrder, evaluationStatus: assignment.evaluationStatus, participationStatus: "ACTIVE" }; }) } : null;
 }
 
 export function getDemoEvaluation(phaseId: string, ideaId: string, evaluatorId: string) {
