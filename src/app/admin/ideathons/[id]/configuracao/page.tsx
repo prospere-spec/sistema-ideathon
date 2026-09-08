@@ -83,7 +83,7 @@ export default function EvaluationConfigurationPage() {
       if (!response.ok) throw new Error(payload.error || "Não foi possível salvar a configuração.");
       setCriteria(payload.data.criteria);
       setScale(payload.data.scale);
-      setNotice("Configuração salva com sucesso.");
+      setNotice("Configuração salva e publicada para os avaliadores.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a configuração.");
     } finally {

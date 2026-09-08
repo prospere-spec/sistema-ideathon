@@ -49,10 +49,11 @@ export async function PUT(request: Request, { params }: RouteContext) {
       let configId: string;
       if (latest?.status === "DRAFT") {
         configId = latest.id;
+        await tx.update(evaluationConfigs).set({ status: "PUBLISHED", publishedAt: new Date(), updatedAt: new Date() }).where(eq(evaluationConfigs.id, configId));
         await tx.delete(evaluationCriteria).where(eq(evaluationCriteria.evaluationConfigId, configId));
         await tx.delete(scaleLevels).where(eq(scaleLevels.evaluationConfigId, configId));
       } else {
-        const [created] = await tx.insert(evaluationConfigs).values({ phaseId: phase.id, version: (latest?.version || 0) + 1, status: "DRAFT" }).returning({ id: evaluationConfigs.id });
+        const [created] = await tx.insert(evaluationConfigs).values({ phaseId: phase.id, version: (latest?.version || 0) + 1, status: "PUBLISHED", publishedAt: new Date() }).returning({ id: evaluationConfigs.id });
         configId = created.id;
       }
       await tx.insert(evaluationCriteria).values(criteria.map((item, index) => ({ evaluationConfigId: configId, name: item.name.trim(), description: item.description.trim(), position: index, weight: item.weight })));
