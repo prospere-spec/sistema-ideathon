@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createDemoIdeathon, createDemoRoom, demoDashboard, getDemoAuditLogs, getDemoEvaluation, getDemoIdeathon, getDemoResults, getDemoRooms, patchDemoRoom, resetDemoState, saveDemoEvaluation, submitDemoEvaluation } from "./demo-store";
+import { createDemoIdeathon, createDemoRoom, demoDashboard, getDemoAuditLogs, getDemoEvaluation, getDemoIdeathon, getDemoResults, getDemoRooms, patchDemoPhase, patchDemoRoom, resetDemoState, saveDemoEvaluation, submitDemoEvaluation } from "./demo-store";
 
 describe("fluxo demo do administrador", () => {
   beforeEach(() => resetDemoState());
@@ -19,6 +19,14 @@ describe("fluxo demo do administrador", () => {
     const updated = patchDemoRoom("demo-ideathon", room!.id, { name: "Banca Sul 2", status: "READY" });
     expect(updated).toMatchObject({ id: room!.id, name: "Banca Sul 2", status: "READY" });
     expect(getDemoRooms("demo-ideathon")?.data.some((item) => item.id === room!.id && item.name === "Banca Sul 2")).toBe(true);
+  });
+
+  it("pausa, conclui e reabre uma fase", () => {
+    expect(patchDemoPhase("demo-ideathon", "demo-phase", { status: "READY" })).toMatchObject({ status: "READY" });
+    expect(patchDemoPhase("demo-ideathon", "demo-phase", { status: "LIVE" })).toMatchObject({ status: "LIVE" });
+    expect(patchDemoPhase("demo-ideathon", "demo-phase", { status: "CLOSED" })).toMatchObject({ status: "CLOSED" });
+    expect(patchDemoPhase("demo-ideathon", "demo-phase", { status: "LIVE" })).toBeNull();
+    expect(patchDemoPhase("demo-ideathon", "demo-phase", { status: "READY" })).toMatchObject({ status: "READY" });
   });
 
   it("salva, envia uma avaliação e trata o reenvio de forma idempotente", () => {

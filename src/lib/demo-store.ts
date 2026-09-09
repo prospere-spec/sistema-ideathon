@@ -1,7 +1,8 @@
 import { calculateWeightedScore } from "./evaluation-score";
 import { buildRanking, type RankingEvaluation } from "./ranking";
+import { canTransitionPhaseStatus, type PhaseStatus } from "./phase-status";
 
-type DemoStatus = "DRAFT" | "READY" | "LIVE" | "CLOSED";
+type DemoStatus = PhaseStatus;
 type EvaluationStatus = "DRAFT" | "SUBMITTED";
 type DemoPhase = { id: string; name: string; position: number; status: DemoStatus; startsAt: string | null; endsAt: string | null };
 type DemoCriterion = { id: string; name: string; description: string; position: number; weight: number };
@@ -182,6 +183,10 @@ export function getDemoPhases(id: string) {
   return event ? { ideathon: listItem(event), data: event.phases } : null;
 }
 
+export function getDemoPhase(id: string, phaseId: string) {
+  return eventById(id)?.phases.find((phase) => phase.id === phaseId) || null;
+}
+
 export function createDemoPhase(id: string, input: { name: string; position?: number }) {
   const event = eventById(id);
   if (!event) return null;
@@ -199,6 +204,7 @@ export function patchDemoPhase(id: string, phaseId: string, input: { name?: stri
   const event = eventById(id);
   const phase = event?.phases.find((item) => item.id === phaseId);
   if (!event || !phase) return null;
+  if (input.status !== undefined && !canTransitionPhaseStatus(phase.status, input.status)) return null;
   if (input.status === "LIVE") for (const other of event.phases) if (other.id !== phaseId && other.status === "LIVE") other.status = "READY";
   if (input.name !== undefined) phase.name = input.name;
   if (input.position !== undefined) phase.position = input.position;

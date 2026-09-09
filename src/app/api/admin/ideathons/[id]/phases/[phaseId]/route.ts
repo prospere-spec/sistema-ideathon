@@ -4,10 +4,10 @@ import { getDb } from "@/db";
 import { auditLogs, evaluations, phaseIdeas, phases } from "@/db/schema";
 import { requireAdminApi } from "@/lib/api-auth";
 import { isDemoMode } from "@/lib/demo-mode";
-import { deleteDemoPhase, patchDemoPhase } from "@/lib/demo-store";
+import { deleteDemoPhase, getDemoPhase, patchDemoPhase } from "@/lib/demo-store";
+import { canTransitionPhaseStatus, isPhaseStatus } from "@/lib/phase-status";
 
 type RouteContext = { params: Promise<{ id: string; phaseId: string }> };
-type PhaseStatus = "DRAFT" | "READY" | "LIVE" | "CLOSED";
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   const { user, response } = await requireAdminApi();
@@ -23,17 +23,22 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const input = body as Record<string, unknown>;
   const name = input.name === undefined ? undefined : String(input.name).trim();
   const position = input.position === undefined ? undefined : Number(input.position);
-  const status = input.status === undefined ? undefined : String(input.status) as PhaseStatus;
+  const statusValue = input.status === undefined ? undefined : String(input.status);
+  const status = statusValue === undefined || !isPhaseStatus(statusValue) ? undefined : statusValue;
   if (name !== undefined && name.length < 2) return NextResponse.json({ error: "Informe um nome válido para a fase." }, { status: 422 });
   if (position !== undefined && (!Number.isInteger(position) || position < 0)) return NextResponse.json({ error: "A posição deve ser um inteiro não negativo." }, { status: 422 });
-  if (status !== undefined && !["DRAFT", "READY", "LIVE", "CLOSED"].includes(status)) return NextResponse.json({ error: "Status de fase inválido." }, { status: 422 });
+  if (statusValue !== undefined && !isPhaseStatus(statusValue)) return NextResponse.json({ error: "Status de fase inválido." }, { status: 422 });
   if (isDemoMode) {
+    const current = getDemoPhase(id, phaseId);
+    if (!current) return NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
+    if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return NextResponse.json({ error: "Transição de status da fase não permitida." }, { status: 409 });
     const updated = patchDemoPhase(id, phaseId, { name, position, status });
     return updated ? NextResponse.json({ data: updated }) : NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
   }
   const db = getDb();
   const [current] = await db.select({ id: phases.id, name: phases.name, position: phases.position, status: phases.status }).from(phases).where(and(eq(phases.id, phaseId), eq(phases.ideathonId, id))).limit(1);
   if (!current) return NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
+  if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return NextResponse.json({ error: "Transição de status da fase não permitida." }, { status: 409 });
   const updates = { name: name ?? current.name, position: position ?? current.position, status: status ?? current.status, updatedAt: new Date() };
   try {
     const [updated] = await db.transaction(async (tx) => {
