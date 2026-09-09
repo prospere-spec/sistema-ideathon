@@ -11,7 +11,7 @@ export function canTransitionPhaseStatus(current: PhaseStatus, next: PhaseStatus
   return (
     (current === "DRAFT" && next === "READY") ||
     (current === "READY" && next === "LIVE") ||
-    (current === "LIVE" && (next === "READY" || next === "CLOSED")) ||
+    (current === "LIVE" && (next === "READY" || next === "DRAFT" || next === "CLOSED")) ||
     (current === "CLOSED" && next === "READY")
   );
 }

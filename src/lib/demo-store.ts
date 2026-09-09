@@ -205,11 +205,18 @@ export function patchDemoPhase(id: string, phaseId: string, input: { name?: stri
   const phase = event?.phases.find((item) => item.id === phaseId);
   if (!event || !phase) return null;
   if (input.status !== undefined && !canTransitionPhaseStatus(phase.status, input.status)) return null;
+  const shouldResetRooms = input.status === "DRAFT" && phase.status !== "DRAFT";
   if (input.status === "LIVE") for (const other of event.phases) if (other.id !== phaseId && other.status === "LIVE") other.status = "READY";
   if (input.name !== undefined) phase.name = input.name;
   if (input.position !== undefined) phase.position = input.position;
   if (input.status !== undefined) phase.status = input.status;
   audit(id, phase.status === "LIVE" ? "PHASE_STARTED" : phase.status === "CLOSED" ? "PHASE_CLOSED" : "PHASE_UPDATED", "PHASE", phaseId, { phaseId, status: phase.status });
+  if (shouldResetRooms) for (const room of event.rooms) if (room.phaseId === phaseId) {
+    if (room.status !== "DRAFT") {
+      room.status = "DRAFT";
+      audit(id, "ROOM_UPDATED", "ROOM", room.id, { phaseId, status: room.status });
+    }
+  }
   return phase;
 }
 

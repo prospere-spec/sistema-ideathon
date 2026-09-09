@@ -6,6 +6,7 @@ describe("transições de status da fase", () => {
     expect(canTransitionPhaseStatus("DRAFT", "READY")).toBe(true);
     expect(canTransitionPhaseStatus("READY", "LIVE")).toBe(true);
     expect(canTransitionPhaseStatus("LIVE", "READY")).toBe(true);
+    expect(canTransitionPhaseStatus("LIVE", "DRAFT")).toBe(true);
     expect(canTransitionPhaseStatus("LIVE", "CLOSED")).toBe(true);
     expect(canTransitionPhaseStatus("CLOSED", "READY")).toBe(true);
     expect(canTransitionPhaseStatus("READY", "READY")).toBe(true);

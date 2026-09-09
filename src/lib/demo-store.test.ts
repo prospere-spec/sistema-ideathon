@@ -29,6 +29,25 @@ describe("fluxo demo do administrador", () => {
     expect(patchDemoPhase("demo-ideathon", "demo-phase", { status: "READY" })).toMatchObject({ status: "READY" });
   });
 
+  it("redefine as salas da fase para rascunho sem remover vínculos", () => {
+    const before = getDemoRooms("demo-ideathon")?.data.find((room) => room.id === "demo-room");
+    expect(before).toMatchObject({ status: "LIVE", ideaCount: 1, evaluatorCount: 1 });
+    const extraRoom = createDemoRoom("demo-ideathon", { name: "Banca Sul", phaseId: "demo-phase" });
+    expect(extraRoom).toBeTruthy();
+    patchDemoRoom("demo-ideathon", extraRoom!.id, { status: "CLOSED" });
+
+    const updated = patchDemoPhase("demo-ideathon", "demo-phase", { status: "DRAFT" });
+    const after = getDemoRooms("demo-ideathon")?.data.find((room) => room.id === "demo-room");
+    const extraAfter = getDemoRooms("demo-ideathon")?.data.find((room) => room.id === extraRoom!.id);
+
+    expect(updated).toMatchObject({ status: "DRAFT" });
+    expect(after).toMatchObject({ status: "DRAFT", ideaCount: 1, evaluatorCount: 1 });
+    expect(extraAfter).toMatchObject({ status: "DRAFT" });
+
+    const edited = patchDemoRoom("demo-ideathon", "demo-room", { name: "Banca Norte revisada", position: 2, status: "READY" });
+    expect(edited).toMatchObject({ name: "Banca Norte revisada", position: 2, status: "READY" });
+  });
+
   it("salva, envia uma avaliação e trata o reenvio de forma idempotente", () => {
     const loaded = getDemoEvaluation("demo-phase", "demo-idea", "demo-evaluator");
     expect("data" in loaded).toBe(true);

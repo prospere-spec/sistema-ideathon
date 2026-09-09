@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
-import { auditLogs, evaluations, phaseIdeas, phases } from "@/db/schema";
+import { auditLogs, evaluations, phaseIdeas, phases, rooms } from "@/db/schema";
 import { requireAdminApi } from "@/lib/api-auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { deleteDemoPhase, getDemoPhase, patchDemoPhase } from "@/lib/demo-store";
@@ -40,10 +40,15 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!current) return NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
   if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return NextResponse.json({ error: "Transição de status da fase não permitida." }, { status: 409 });
   const updates = { name: name ?? current.name, position: position ?? current.position, status: status ?? current.status, updatedAt: new Date() };
+  const shouldResetRooms = status === "DRAFT" && current.status !== "DRAFT";
   try {
     const [updated] = await db.transaction(async (tx) => {
       const [phase] = await tx.update(phases).set(updates).where(eq(phases.id, phaseId)).returning();
       await tx.insert(auditLogs).values({ actorUserId: user.id, action: updates.status === "LIVE" ? "PHASE_STARTED" : updates.status === "CLOSED" ? "PHASE_CLOSED" : "PHASE_UPDATED", entityType: "PHASE", entityId: phaseId, metadata: { ideathonId: id, phaseId, status: updates.status } });
+      if (shouldResetRooms) {
+        const resetRooms = await tx.update(rooms).set({ status: "DRAFT", updatedAt: new Date() }).where(and(eq(rooms.phaseId, phaseId), ne(rooms.status, "DRAFT"))).returning({ id: rooms.id });
+        if (resetRooms.length) await tx.insert(auditLogs).values(resetRooms.map((room) => ({ actorUserId: user.id, action: "ROOM_UPDATED", entityType: "ROOM", entityId: room.id, metadata: { ideathonId: id, phaseId, status: "DRAFT" } })));
+      }
       return [phase];
     });
     return NextResponse.json({ data: updated });
