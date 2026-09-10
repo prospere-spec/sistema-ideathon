@@ -3,7 +3,8 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { evaluationCriteria, evaluationScores, evaluations, ideas, phaseIdeas, phases, roomEvaluators, rooms, teams } from "@/db/schema";
 import { requireAdminApi } from "@/lib/api-auth";
-import { buildRanking, type RankingEvaluation } from "@/lib/ranking";
+import type { RankingEvaluation } from "@/lib/ranking";
+import { buildRankingResults } from "@/lib/ranking-results";
 import { isDemoMode } from "@/lib/demo-mode";
 import { getDemoResults } from "@/lib/demo-store";
 
@@ -25,10 +26,11 @@ export async function GET(request: Request, { params }: RouteContext) {
   const phase = (queryPhaseId && phaseRows.find((item) => item.id === queryPhaseId)) || phaseRows.find((item) => item.status === "LIVE") || phaseRows[0];
   if (queryPhaseId && !phaseRows.some((item) => item.id === queryPhaseId)) return NextResponse.json({ error: "Fase não encontrada neste ideathon." }, { status: 404 });
 
-  const [ideaRows, evaluatorRows, evaluationRows] = await Promise.all([
+  const [ideaRows, evaluatorRows, evaluationRows, roomRows] = await Promise.all([
     db.select({ phaseIdeaId: phaseIdeas.id, ideaId: ideas.id, ideaName: ideas.name, teamName: teams.name, category: ideas.category, roomId: phaseIdeas.roomId, roomName: rooms.name }).from(phaseIdeas).innerJoin(ideas, eq(ideas.id, phaseIdeas.ideaId)).innerJoin(teams, eq(teams.id, ideas.teamId)).leftJoin(rooms, eq(rooms.id, phaseIdeas.roomId)).where(and(eq(phaseIdeas.phaseId, phase.id), ne(phaseIdeas.status, "ELIMINATED"), eq(ideas.status, "ACTIVE"))).orderBy(asc(phaseIdeas.createdAt)),
     db.select({ roomId: roomEvaluators.roomId, evaluatorId: roomEvaluators.evaluatorId }).from(roomEvaluators).innerJoin(rooms, eq(rooms.id, roomEvaluators.roomId)).where(eq(rooms.phaseId, phase.id)),
     db.select({ evaluationId: evaluations.id, phaseIdeaId: evaluations.phaseIdeaId, finalScore: evaluations.finalScore, submittedAt: evaluations.submittedAt, criterionId: evaluationScores.criterionId, criterionName: evaluationCriteria.name, score: evaluationScores.score }).from(evaluations).innerJoin(phaseIdeas, eq(phaseIdeas.id, evaluations.phaseIdeaId)).innerJoin(evaluationScores, eq(evaluationScores.evaluationId, evaluations.id)).innerJoin(evaluationCriteria, eq(evaluationCriteria.id, evaluationScores.criterionId)).where(and(eq(phaseIdeas.phaseId, phase.id), eq(evaluations.status, "SUBMITTED"))),
+    db.select({ id: rooms.id, name: rooms.name }).from(rooms).where(eq(rooms.phaseId, phase.id)).orderBy(asc(rooms.position), asc(rooms.id)),
   ]);
 
   const expectedByRoom = new Map<string, number>();
@@ -42,29 +44,20 @@ export async function GET(request: Request, { params }: RouteContext) {
     evaluationsByIdea.set(row.phaseIdeaId, ideaEvaluations);
   }
 
-  const data = buildRanking(ideaRows.map((idea) => ({
+  const results = buildRankingResults(ideaRows.map((idea) => ({
     ideaId: idea.ideaId,
     ideaName: idea.ideaName,
     teamName: idea.teamName,
     category: idea.category,
+    roomId: idea.roomId,
+    roomName: idea.roomName,
     expectedEvaluations: idea.roomId ? expectedByRoom.get(idea.roomId) || 0 : 0,
     evaluations: Array.from(evaluationsByIdea.get(idea.phaseIdeaId)?.values() || []),
-  })));
-  const received = data.reduce((total, row) => total + row.receivedEvaluations, 0);
-  const expected = data.reduce((total, row) => total + row.expectedEvaluations, 0);
-  const evaluatedScores = data.flatMap((row) => row.finalScore === null ? [] : [row.finalScore]);
+  })), roomRows);
 
   return NextResponse.json({
     phase,
     phases: phaseRows,
-    data,
-    summary: {
-      totalIdeas: data.length,
-      expectedEvaluations: expected,
-      receivedEvaluations: received,
-      completionPercent: expected ? Math.min(100, Math.round((received / expected) * 100)) : 0,
-      averageScore: evaluatedScores.length ? Number((evaluatedScores.reduce((total, score) => total + score, 0) / evaluatedScores.length).toFixed(2)) : null,
-      updatedAt: evaluationRows.length ? new Date(Math.max(...evaluationRows.map((row) => row.submittedAt ? new Date(row.submittedAt).getTime() : 0))).toISOString() : null,
-    },
+    ...results,
   });
 }

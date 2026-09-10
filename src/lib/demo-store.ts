@@ -1,5 +1,6 @@
 import { calculateWeightedScore } from "./evaluation-score";
-import { buildRanking, type RankingEvaluation } from "./ranking";
+import type { RankingEvaluation } from "./ranking";
+import { buildRankingResults } from "./ranking-results";
 import { canTransitionPhaseStatus, type PhaseStatus } from "./phase-status";
 
 type DemoStatus = PhaseStatus;
@@ -329,17 +330,13 @@ export function getDemoResults(id: string, queryPhaseId?: string | null) {
   if (!phase) return { error: "Nenhuma fase encontrada neste ideathon.", status: 404 as const };
   if (queryPhaseId && phase.id !== queryPhaseId) return { error: "Fase não encontrada neste ideathon.", status: 404 as const };
   const expectedByRoom = new Map(event.rooms.filter((room) => room.phaseId === phase.id).map((room) => [room.id, room.evaluatorIds.length]));
-  const data = buildRanking(event.ideas.filter((idea) => idea.status === "ACTIVE").flatMap((idea) => {
+  const results = buildRankingResults(event.ideas.filter((idea) => idea.status === "ACTIVE").flatMap((idea) => {
     const room = event.rooms.find((item) => item.phaseId === phase.id && item.ideaIds.includes(idea.id));
     if (!room) return [];
     const evaluations: RankingEvaluation[] = state().evaluations.filter((evaluation) => evaluation.phaseId === phase.id && evaluation.ideaId === idea.id && evaluation.status === "SUBMITTED").map((evaluation) => ({ finalScore: evaluation.finalScore, submittedAt: evaluation.submittedAt, scores: criteriaFor(phase.id).filter((criterion) => evaluation.scores[criterion.id] !== undefined).map((criterion) => ({ criterionId: criterion.id, criterionName: criterion.name, score: evaluation.scores[criterion.id] })) }));
-    return [{ ideaId: idea.id, ideaName: idea.name, teamName: idea.teamName, category: idea.category, expectedEvaluations: expectedByRoom.get(room.id) || 0, evaluations }];
-  }));
-  const received = data.reduce((total, row) => total + row.receivedEvaluations, 0);
-  const expected = data.reduce((total, row) => total + row.expectedEvaluations, 0);
-  const scores = data.flatMap((row) => row.finalScore === null ? [] : [row.finalScore]);
-  const submissions = state().evaluations.filter((evaluation) => evaluation.ideathonId === id && evaluation.status === "SUBMITTED" && evaluation.submittedAt);
-  return { phase: { id: phase.id, name: phase.name, position: phase.position, status: phase.status }, phases: event.phases, data, summary: { totalIdeas: data.length, expectedEvaluations: expected, receivedEvaluations: received, completionPercent: expected ? Math.min(100, Math.round((received / expected) * 100)) : 0, averageScore: scores.length ? Number((scores.reduce((total, score) => total + score, 0) / scores.length).toFixed(2)) : null, updatedAt: submissions.length ? submissions.map((item) => item.submittedAt!).sort().at(-1) || null : null } };
+    return [{ ideaId: idea.id, ideaName: idea.name, teamName: idea.teamName, category: idea.category, roomId: room.id, roomName: room.name, expectedEvaluations: expectedByRoom.get(room.id) || 0, evaluations }];
+  }), event.rooms.filter((room) => room.phaseId === phase.id).sort((left, right) => left.position - right.position));
+  return { phase: { id: phase.id, name: phase.name, position: phase.position, status: phase.status }, phases: event.phases, ...results };
 }
 
 export function getDemoAuditLogs(id: string, options: { limit: number; action: string | null; entityType: string | null }) {
