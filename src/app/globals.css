@@ -64,11 +64,3 @@ select:focus-visible {
   background: var(--color-secondary-container);
   color: var(--color-on-secondary-fixed);
 }
-
-main > header[class~="bg-primary"] > div > a[href="/"] {
-  display: block;
-  width: 132px;
-  height: 32px;
-  background: url("/brand/logo-revvolucao.png") center / 144px 81px no-repeat;
-  font-size: 0;
-}
