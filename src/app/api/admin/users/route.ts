@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, isNull } from "drizzle-orm";
 import { hash } from "bcryptjs";
 import { getDb } from "@/db";
 import { auditLogs, users } from "@/db/schema";
@@ -10,7 +10,7 @@ export async function GET() {
   const { response } = await requireAdminApi();
   if (response) return response;
   const db = getDb();
-  const data = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt }).from(users).orderBy(asc(users.name));
+  const data = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt }).from(users).where(isNull(users.deletedAt)).orderBy(asc(users.name));
   return NextResponse.json({ data });
 }
 
@@ -25,6 +25,8 @@ export async function POST(request: Request) {
   if (name.length < 2 || !email.includes("@")) return NextResponse.json({ error: "Informe nome e e-mail válidos." }, { status: 422 });
   const temporaryPassword = generateTemporaryPassword();
   const db = getDb();
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+  if (existing) return NextResponse.json({ error: "Este e-mail já está cadastrado." }, { status: 409 });
   try {
     const [created] = await db.insert(users).values({ name, email, role, status, passwordHash: await hash(temporaryPassword, 12), mustChangePassword: true }).returning({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt });
     await db.insert(auditLogs).values({ actorUserId: user.id, action: "USER_CREATED", entityType: "USER", entityId: created.id, metadata: { userId: created.id, role } });

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "@/db";
-import { auditLogs, users } from "@/db/schema";
+import { auditLogs, sessions, users } from "@/db/schema";
 import { requireAdminApi } from "@/lib/api-auth";
 import { generateTemporaryPassword } from "@/lib/temporary-password";
 
@@ -22,7 +22,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!Object.keys(updates).length) return NextResponse.json({ error: "Nenhuma alteração informada." }, { status: 422 });
   const db = getDb();
   try {
-    const [updated] = await db.update(users).set({ ...updates, updatedAt: new Date() }).where(eq(users.id, id)).returning({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt });
+    const [updated] = await db.update(users).set({ ...updates, updatedAt: new Date() }).where(and(eq(users.id, id), isNull(users.deletedAt))).returning({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt });
     if (!updated) return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     await db.insert(auditLogs).values({ actorUserId: user.id, action: "USER_UPDATED", entityType: "USER", entityId: id, metadata: { userId: id, fields: Object.keys(updates) } });
     return NextResponse.json({ data: updated });
@@ -40,12 +40,36 @@ export async function POST(_request: Request, { params }: RouteContext) {
   const db = getDb();
 
   try {
-    const [updated] = await db.update(users).set({ passwordHash: await hash(temporaryPassword, 12), mustChangePassword: true, updatedAt: new Date() }).where(eq(users.id, id)).returning({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt });
+    const [updated] = await db.update(users).set({ passwordHash: await hash(temporaryPassword, 12), mustChangePassword: true, updatedAt: new Date() }).where(and(eq(users.id, id), isNull(users.deletedAt))).returning({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, updatedAt: users.updatedAt });
     if (!updated) return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
     await db.insert(auditLogs).values({ actorUserId: user.id, action: "USER_PASSWORD_RESET", entityType: "USER", entityId: id, metadata: { userId: id } });
     return NextResponse.json({ data: { ...updated, temporaryPassword } });
   } catch (error) {
     console.error("Failed to reset user password", error);
     return NextResponse.json({ error: "Não foi possível gerar uma nova senha temporária." }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, { params }: RouteContext) {
+  const { user, response } = await requireAdminApi();
+  if (response) return response;
+  const { id } = await params;
+  if (id === user.id) return NextResponse.json({ error: "Você não pode excluir seu próprio acesso." }, { status: 422 });
+  const db = getDb();
+  const deletedAt = new Date();
+
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [deleted] = await tx.update(users).set({ name: "Usuário removido", email: `removed-${id}@deleted.local`, status: "INACTIVE", passwordHash: null, mustChangePassword: true, deletedAt, updatedAt: deletedAt }).where(and(eq(users.id, id), isNull(users.deletedAt))).returning({ id: users.id });
+      if (!deleted) return null;
+      await tx.delete(sessions).where(eq(sessions.userId, id));
+      await tx.insert(auditLogs).values({ actorUserId: user.id, action: "USER_DELETED", entityType: "USER", entityId: id, metadata: { userId: id, deletedAt: deletedAt.toISOString() } });
+      return deleted;
+    });
+    if (!result) return NextResponse.json({ error: "Usuário não encontrado ou já excluído." }, { status: 404 });
+    return NextResponse.json({ data: { id: result.id, deleted: true } });
+  } catch (error) {
+    console.error("Failed to delete user", error);
+    return NextResponse.json({ error: "Não foi possível excluir o usuário." }, { status: 500 });
   }
 }

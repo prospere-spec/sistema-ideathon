@@ -44,6 +44,7 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").notNull().default("EVALUATOR"),
   status: userStatusEnum("status").notNull().default("ACTIVE"),
   mustChangePassword: boolean("must_change_password").notNull().default(true),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps(),
 }, (table) => [
   uniqueIndex("users_email_unique").on(table.email),

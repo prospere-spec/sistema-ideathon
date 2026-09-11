@@ -65,6 +65,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
+      if (!isDemoMode && database && token.id) {
+        const [currentUser] = await database.select({ id: users.id, name: users.name, email: users.email, role: users.role, status: users.status, mustChangePassword: users.mustChangePassword }).from(users).where(eq(users.id, String(token.id))).limit(1);
+        if (currentUser) {
+          session.user.id = currentUser.id;
+          session.user.name = currentUser.name;
+          session.user.email = currentUser.email;
+          session.user.role = currentUser.role;
+          session.user.status = currentUser.status;
+          session.user.mustChangePassword = currentUser.mustChangePassword;
+          return session;
+        }
+        session.user.status = "INACTIVE";
+        return session;
+      }
       session.user.id = String(token.id);
       session.user.role = token.role as "ADMIN" | "EVALUATOR";
       session.user.status = token.status as "ACTIVE" | "INACTIVE";
