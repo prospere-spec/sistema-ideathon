@@ -20,7 +20,7 @@ type PublicIdea = {
   solution: string;
   category: string | null;
   teamName: string;
-  phaseName: string | null;
+  phases: Array<{ id: string; name: string; position: number; status: string }>;
   pitchDeckUrl: string | null;
   videoPitchUrl: string | null;
   members: Array<{ name: string; role: string }>;
@@ -33,7 +33,7 @@ type PublicData = {
   timezone: string;
   startsAt: string | null;
   endsAt: string | null;
-  phases: Array<{ id: string; name: string; status: string; position: number }>;
+  phases: Array<{ id: string; name: string; status: string; position: number; startsAt: string | null; endsAt: string | null }>;
   ideas: PublicIdea[];
 };
 
@@ -42,6 +42,7 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedIdea, setSelectedIdea] = useState<PublicIdea | null>(null);
+  const [phaseTab, setPhaseTab] = useState("all");
 
   useEffect(() => {
     setLoading(true);
@@ -73,21 +74,19 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
       </main>
     );
 
+  const visibleIdeas = phaseTab === "all" ? event.ideas : event.ideas.filter((idea) => idea.phases.some((phase) => phase.id === phaseTab));
+  const phaseStatusLabel = (status: string) => status === "CLOSED" ? "Encerrada" : status === "READY" ? "Próxima etapa" : status === "LIVE" ? "Ao vivo" : "Em breve";
+  const formatPhaseWindow = (phase: PublicData["phases"][number]) => {
+    if (!phase.startsAt && !phase.endsAt) return null;
+    const format = new Intl.DateTimeFormat("pt-BR", { timeZone: event.timezone, dateStyle: "short", timeStyle: "short" });
+    return `${phase.startsAt ? format.format(new Date(phase.startsAt)) : "Início a definir"}${phase.endsAt ? ` até ${format.format(new Date(phase.endsAt))}` : ""}`;
+  };
+
   return (
     <main className="min-h-screen bg-surface text-ink">
       <header className="border-b border-white/10 bg-primary text-white">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <Link
-            href="/"
-            className="relative h-8 w-36 overflow-hidden"
-            aria-label="Revvolução, página inicial"
-          >
-            <img
-              src="/brand/logo-revvolucao.png"
-              alt="Revvolução"
-              className="absolute left-0 top-1/2 h-[72px] max-w-none -translate-y-1/2"
-            />
-          </Link>
+          <Link href="/" className="text-xl font-black tracking-[-0.08em] text-danger" aria-label="Revvolução, página inicial">Revvolução</Link>
           <Badge tone="lime">
             {event.status === "LIVE" ? "Ao vivo" : event.status}
           </Badge>
@@ -129,11 +128,12 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
               </h2>
             </div>
             <span className="text-sm text-ink-muted">
-              {event.ideas.length} projetos
+              {visibleIdeas.length} projetos
             </span>
           </div>
+          <div className="mt-6 flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Filtrar equipes por fase"><button type="button" role="tab" aria-selected={phaseTab === "all"} onClick={() => setPhaseTab("all")} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors ${phaseTab === "all" ? "bg-primary text-lime" : "bg-white text-ink-muted hover:bg-surface-low"}`}>Todas as equipes</button>{event.phases.map((phase) => <button key={phase.id} type="button" role="tab" aria-selected={phaseTab === phase.id} onClick={() => setPhaseTab(phase.id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors ${phaseTab === phase.id ? "bg-primary text-lime" : "bg-white text-ink-muted hover:bg-surface-low"}`}>{phase.name}</button>)}</div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {event.ideas.map((idea) => (
+            {visibleIdeas.map((idea) => (
               <article
                 key={idea.id}
                 className="rounded-lg border border-outline/45 bg-white p-5 shadow-card"
@@ -155,11 +155,7 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
                   <p className="text-xs font-bold uppercase tracking-[0.12em] text-ink-muted">
                     {idea.teamName}
                   </p>
-                  {idea.phaseName ? (
-                    <p className="mt-1 text-xs text-ink-muted">
-                      {idea.phaseName}
-                    </p>
-                  ) : null}
+                  {idea.phases.length ? <p className="mt-1 text-xs text-ink-muted">{idea.phases.map((phase) => phase.name).join(" · ")}</p> : null}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold">
                   {idea.pitchDeckUrl ? (
@@ -197,7 +193,7 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
                 </div>
               </article>
             ))}
-            {!event.ideas.length ? (
+            {!visibleIdeas.length ? (
               <p className="col-span-full rounded-lg bg-white p-10 text-center text-sm text-ink-muted">
                 Os projetos serão publicados quando estiverem disponíveis.
               </p>
@@ -215,8 +211,9 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
                 <div>
                   <p className="text-base font-bold text-white">{phase.name}</p>
                   <p className="mt-0.5 text-sm text-white/55">
-                    {phase.status === "CLOSED" ? "Encerrada" : phase.status === "READY" ? "Próxima etapa" : phase.status === "LIVE" ? "Ao vivo" : "Em breve"}
+                    {formatPhaseWindow(phase) || phaseStatusLabel(phase.status)}
                   </p>
+                  {formatPhaseWindow(phase) ? <p className="mt-1 text-xs text-white/40">{phaseStatusLabel(phase.status)}</p> : null}
                 </div>
               </li>
             ))}

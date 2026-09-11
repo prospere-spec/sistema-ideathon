@@ -42,7 +42,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       { error: "Ideathon não encontrado." },
       { status: 404 },
     );
-  const [phaseRows, ideaRows, memberRows] = await Promise.all([
+  const [phaseRows, ideaRows, assignmentRows, memberRows] = await Promise.all([
     db
       .select({
         id: phases.id,
@@ -65,18 +65,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
         videoPitchUrl: ideas.videoPitchUrl,
         teamId: teams.id,
         teamName: teams.name,
-        phaseId: phaseIdeas.phaseId,
-        phaseName: phases.name,
       })
       .from(ideas)
       .innerJoin(teams, eq(teams.id, ideas.teamId))
-      .leftJoin(phaseIdeas, eq(phaseIdeas.ideaId, ideas.id))
-      .leftJoin(
-        phases,
-        and(eq(phases.id, phaseIdeas.phaseId), eq(phases.ideathonId, event.id)),
-      )
       .where(and(eq(ideas.ideathonId, event.id), eq(ideas.status, "ACTIVE")))
       .orderBy(asc(ideas.createdAt)),
+    db
+      .select({ ideaId: phaseIdeas.ideaId, id: phases.id, name: phases.name, position: phases.position, status: phases.status })
+      .from(phaseIdeas)
+      .innerJoin(phases, and(eq(phases.id, phaseIdeas.phaseId), eq(phases.ideathonId, event.id)))
+      .where(eq(phases.ideathonId, event.id))
+      .orderBy(asc(phases.position)),
     db
       .select({
         teamId: teamMembers.teamId,
@@ -97,6 +96,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
       ...(membersByTeam.get(member.teamId) || []),
       { name: member.name, role: member.role },
     ]);
+  const phasesByIdea = new Map<string, Array<{ id: string; name: string; position: number; status: string }>>();
+  for (const assignment of assignmentRows)
+    phasesByIdea.set(assignment.ideaId, [...(phasesByIdea.get(assignment.ideaId) || []), { id: assignment.id, name: assignment.name, position: assignment.position, status: assignment.status }]);
   return NextResponse.json({
     data: {
       ...event,
@@ -104,6 +106,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       ideas: ideaRows.map(({ teamId, ...idea }) => ({
         ...idea,
         members: membersByTeam.get(teamId) || [],
+        phases: phasesByIdea.get(idea.id) || [],
       })),
     },
   });

@@ -52,6 +52,12 @@ export default function EvaluatorVotingPage() {
   }, [pathname, requestedPhaseId, router, searchParams]);
 
   useEffect(() => {
+    const returnToDashboard = () => router.replace("/avaliador?returned=true");
+    window.addEventListener("popstate", returnToDashboard);
+    return () => window.removeEventListener("popstate", returnToDashboard);
+  }, [router]);
+
+  useEffect(() => {
     let active = true;
     const load = async () => {
       try {

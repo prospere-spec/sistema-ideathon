@@ -10,8 +10,10 @@ export function EvaluatorSubmissionNotice() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (searchParams.get("submitted") !== "complete") return;
-    setMessage("Avaliação enviada com sucesso.");
+    const submitted = searchParams.get("submitted");
+    const returned = searchParams.get("returned");
+    if (!submitted && !returned) return;
+    setMessage(submitted === "complete" ? "Avaliação enviada com sucesso." : "Painel atualizado com o status das suas avaliações.");
     router.replace(pathname, { scroll: false });
   }, [pathname, router, searchParams]);
 

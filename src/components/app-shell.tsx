@@ -43,7 +43,7 @@ export function AppShell({ children, activeSection, navigation = "panel" }: { ch
 
   return (
     <div className="min-h-screen bg-surface text-ink">
-      <header className={`fixed left-0 right-0 top-0 z-30 h-[72px] border-b backdrop-blur-md ${darkHeader ? "border-white/10 bg-black/95 text-white" : "border-outline/30 bg-surface/90"}`}>
+      <header className={`relative z-30 h-[72px] border-b backdrop-blur-md ${darkHeader ? "border-white/10 bg-black/95 text-white" : "border-outline/30 bg-surface/90"}`}>
         <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-4">
             <Link href={homeHref} className="relative hidden h-8 w-32 shrink-0 overflow-hidden md:block" aria-label="Revvolução, página inicial"><img src="/brand/logo-revvolucao.png" alt="Revvolução" className="absolute left-0 top-1/2 h-[72px] max-w-none -translate-y-1/2" /></Link>
@@ -61,9 +61,9 @@ export function AppShell({ children, activeSection, navigation = "panel" }: { ch
           </div>
         </div>
       </header>
-      {mobileNavOpen ? <nav id="mobile-navigation" className={`fixed left-0 right-0 top-[72px] z-20 border-b p-3 shadow-popover lg:hidden ${darkHeader ? "border-white/10 bg-primary text-white" : "border-outline/30 bg-white text-ink"}`} aria-label="Navegação principal mobile">{links.map((link) => <Link key={link.href} href={link.href} onClick={() => setMobileNavOpen(false)} className={`block rounded-md px-4 py-3 text-sm font-semibold ${currentSection === link.section ? (darkHeader ? "bg-white/10 text-lime" : "bg-lime/20 text-ink") : darkHeader ? "text-white/80 hover:bg-white/10" : "text-ink-muted hover:bg-surface-low hover:text-ink"}`}>{link.label}</Link>)}</nav> : null}
-      {contextLinks.length ? <nav className="fixed left-0 right-0 top-[72px] z-10 overflow-x-auto border-b border-outline/30 bg-white/95 backdrop-blur-md" aria-label="Navegação do ideathon"><div className="mx-auto flex min-w-max max-w-container px-4 sm:px-6 lg:px-8">{contextLinks.map((link) => <Link key={link.href} href={link.href} className={`border-b-2 px-4 py-3 text-xs font-bold transition-colors ${pathname === link.href ? "border-lime text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>{link.label}</Link>)}</div></nav> : null}
-      <main className={`min-h-screen ${contextLinks.length ? "pt-[120px]" : "pt-[72px]"}`}>{children}</main>
+      {mobileNavOpen ? <nav id="mobile-navigation" className={`absolute left-0 right-0 top-[72px] z-20 border-b p-3 shadow-popover lg:hidden ${darkHeader ? "border-white/10 bg-primary text-white" : "border-outline/30 bg-white text-ink"}`} aria-label="Navegação principal">{links.map((link) => <Link key={link.href} href={link.href} onClick={() => setMobileNavOpen(false)} className={`block rounded-md px-4 py-3 text-sm font-semibold ${currentSection === link.section ? (darkHeader ? "bg-white/10 text-lime" : "bg-lime/20 text-ink") : darkHeader ? "text-white/80 hover:bg-white/10" : "text-ink-muted hover:bg-surface-low hover:text-ink"}`}>{link.label}</Link>)}</nav> : null}
+      {contextLinks.length ? <nav className="z-10 overflow-x-auto border-b border-outline/30 bg-white/95 backdrop-blur-md" aria-label="Navegação do ideathon"><div className="mx-auto flex min-w-max max-w-container px-4 sm:px-6 lg:px-8">{contextLinks.map((link) => <Link key={link.href} href={link.href} className={`border-b-2 px-4 py-3 text-xs font-bold transition-colors ${pathname === link.href ? "border-lime text-ink" : "border-transparent text-ink-muted hover:text-ink"}`}>{link.label}</Link>)}</div></nav> : null}
+      <main className="min-h-screen">{children}</main>
     </div>
   );
 }
