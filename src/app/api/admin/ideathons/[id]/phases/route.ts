@@ -18,7 +18,7 @@ function parsePhase(input: unknown) {
   if (name.length < 2) return { error: "Informe um nome válido para a fase." } as const;
   if (position !== undefined && (!Number.isInteger(position) || position < 0)) return { error: "A posição deve ser um inteiro não negativo." } as const;
   const dates = parsePhaseDates(body);
-  if ("error" in dates) return dates;
+  if (!dates.ok) return { error: dates.error } as const;
   const startsAt = dates.data.startsAt ?? null;
   const endsAt = dates.data.endsAt ?? null;
   if (!hasValidPhaseDateRange(startsAt, endsAt)) return { error: "O término da fase deve ser posterior ao início." } as const;

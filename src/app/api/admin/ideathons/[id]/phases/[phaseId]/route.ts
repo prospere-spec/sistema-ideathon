@@ -27,7 +27,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const statusValue = input.status === undefined ? undefined : String(input.status);
   const status = statusValue === undefined || !isPhaseStatus(statusValue) ? undefined : statusValue;
   const dates = parsePhaseDates(input);
-  if ("error" in dates) return NextResponse.json({ error: dates.error }, { status: 422 });
+  if (!dates.ok) return NextResponse.json({ error: dates.error }, { status: 422 });
   if (name !== undefined && name.length < 2) return NextResponse.json({ error: "Informe um nome válido para a fase." }, { status: 422 });
   if (position !== undefined && (!Number.isInteger(position) || position < 0)) return NextResponse.json({ error: "A posição deve ser um inteiro não negativo." }, { status: 422 });
   if (statusValue !== undefined && !isPhaseStatus(statusValue)) return NextResponse.json({ error: "Status de fase inválido." }, { status: 422 });

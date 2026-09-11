@@ -1,25 +1,27 @@
 export type PhaseDates = { startsAt?: Date | null; endsAt?: Date | null };
+type DateParseResult = { ok: true; value: Date | null } | { ok: false; error: string };
+type PhaseDatesResult = { ok: true; data: PhaseDates } | { ok: false; error: string };
 
-function parseDate(value: unknown, label: string) {
-  if (value === null || value === "") return { data: null } as const;
+function parseDate(value: unknown, label: string): DateParseResult {
+  if (value === null || value === "") return { ok: true, value: null };
   const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return { error: `Informe uma data e hora de ${label} válidas.` } as const;
-  return { data: date } as const;
+  if (Number.isNaN(date.getTime())) return { ok: false, error: `Informe uma data e hora de ${label} válidas.` };
+  return { ok: true, value: date };
 }
 
-export function parsePhaseDates(input: Record<string, unknown>) {
+export function parsePhaseDates(input: Record<string, unknown>): PhaseDatesResult {
   const dates: PhaseDates = {};
   if (input.startsAt !== undefined) {
     const parsed = parseDate(input.startsAt, "início");
-    if ("error" in parsed) return parsed;
-    dates.startsAt = parsed.data;
+    if (!parsed.ok) return parsed;
+    dates.startsAt = parsed.value;
   }
   if (input.endsAt !== undefined) {
     const parsed = parseDate(input.endsAt, "término");
-    if ("error" in parsed) return parsed;
-    dates.endsAt = parsed.data;
+    if (!parsed.ok) return parsed;
+    dates.endsAt = parsed.value;
   }
-  return { data: dates } as const;
+  return { ok: true, data: dates };
 }
 
 export function hasValidPhaseDateRange(startsAt: Date | null, endsAt: Date | null) {
