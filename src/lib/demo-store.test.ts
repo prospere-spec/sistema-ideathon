@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createDemoIdeathon, createDemoRoom, demoDashboard, getDemoAuditLogs, getDemoEvaluation, getDemoIdeathon, getDemoResults, getDemoRooms, patchDemoPhase, patchDemoRoom, resetDemoState, saveDemoEvaluation, submitDemoEvaluation } from "./demo-store";
+import { createDemoIdeathon, createDemoRoom, demoDashboard, getDemoAuditLogs, getDemoEvaluation, getDemoIdeathon, getDemoResults, getDemoRooms, patchDemoIdeathon, patchDemoPhase, patchDemoRoom, resetDemoState, saveDemoEvaluation, submitDemoEvaluation } from "./demo-store";
 
 describe("fluxo demo do administrador", () => {
   beforeEach(() => resetDemoState());
@@ -10,6 +10,20 @@ describe("fluxo demo do administrador", () => {
     expect(created.status).toBe("DRAFT");
     expect(getDemoIdeathon(created.id)?.name).toBe("Novo desafio");
     expect(demoDashboard().data.some((event) => event.id === created.id)).toBe(true);
+  });
+
+  it("promove o ideathon ao iniciar uma fase e exige que ela seja encerrada antes do fechamento", () => {
+    const created = createDemoIdeathon({ name: "Ciclo de vida", slug: "ciclo-de-vida" });
+    const phaseId = getDemoIdeathon(created.id)!.phases[0].id;
+
+    expect(patchDemoIdeathon(created.id, { status: "READY" })).toMatchObject({ error: expect.any(String), status: 409 });
+    expect(patchDemoPhase(created.id, phaseId, { status: "READY" })).toMatchObject({ status: "READY" });
+    expect(patchDemoPhase(created.id, phaseId, { status: "LIVE" })).toMatchObject({ status: "LIVE" });
+    expect(getDemoIdeathon(created.id)?.status).toBe("LIVE");
+    expect(patchDemoIdeathon(created.id, { status: "CLOSED" })).toMatchObject({ error: expect.any(String), status: 409 });
+    expect(patchDemoPhase(created.id, phaseId, { status: "CLOSED" })).toMatchObject({ status: "CLOSED" });
+    expect(patchDemoIdeathon(created.id, { status: "CLOSED" })).toMatchObject({ data: { status: "CLOSED" } });
+    expect(patchDemoPhase(created.id, phaseId, { status: "READY" })).toBeNull();
   });
 
   it("cria e atualiza uma sala mantendo o estado em memória", () => {

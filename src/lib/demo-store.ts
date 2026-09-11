@@ -2,6 +2,7 @@ import { calculateWeightedScore } from "./evaluation-score";
 import type { RankingEvaluation } from "./ranking";
 import { buildRankingResults } from "./ranking-results";
 import { canTransitionPhaseStatus, type PhaseStatus } from "./phase-status";
+import { ideathonStatusAction, ideathonStatusError } from "./ideathon-status";
 
 type DemoStatus = PhaseStatus;
 type EvaluationStatus = "DRAFT" | "SUBMITTED";
@@ -137,6 +138,25 @@ export function getDemoIdeathon(id: string) {
   return { ...event, ideas: ideaRows, evaluationConfigs, evaluationProgress: { total: evaluationRows.length, submitted: evaluationRows.filter((evaluation) => evaluation.status === "SUBMITTED").length, percent: evaluationRows.length ? Math.round((evaluationRows.filter((evaluation) => evaluation.status === "SUBMITTED").length / evaluationRows.length) * 100) : 0 } };
 }
 
+export function patchDemoIdeathon(id: string, input: { status?: DemoStatus; name?: string; description?: string | null; timezone?: string; startsAt?: Date | null; endsAt?: Date | null }) {
+  const event = eventById(id);
+  if (!event) return { error: "Ideathon não encontrado.", status: 404 } as const;
+  const previousStatus = event.status;
+  if (input.status !== undefined) {
+    const hasPreparedPhase = event.phases.some((phase) => phase.status === "READY" && criteriaFor(phase.id).length > 0 && event.rooms.some((room) => room.phaseId === phase.id && room.status === "READY" && room.evaluatorIds.length > 0 && event.ideas.some((idea) => idea.status === "ACTIVE" && room.ideaIds.includes(idea.id))));
+    const error = ideathonStatusError(event.status, input.status, { hasPreparedPhase, hasLivePhase: event.phases.some((phase) => phase.status === "LIVE"), hasLiveRoom: event.rooms.some((room) => room.status === "LIVE") });
+    if (error) return { error, status: 409 } as const;
+    event.status = input.status;
+  }
+  if (input.name !== undefined) event.name = input.name;
+  if (input.description !== undefined) event.description = input.description || "";
+  if (input.timezone !== undefined) event.timezone = input.timezone;
+  if (input.startsAt !== undefined) event.startsAt = input.startsAt?.toISOString() || null;
+  if (input.endsAt !== undefined) event.endsAt = input.endsAt?.toISOString() || null;
+  audit(id, event.status !== previousStatus ? ideathonStatusAction(event.status) : "IDEATHON_UPDATED", "IDEATHON", id, { previousStatus, status: event.status, fields: Object.keys(input) });
+  return { data: listItem(event) } as const;
+}
+
 export function getDemoIdeas(id: string) {
   const event = eventById(id);
   return event ? { ideathon: listItem(event), data: event.ideas } : null;
@@ -161,6 +181,7 @@ export function patchDemoRoom(id: string, roomId: string, input: { name?: string
   const event = eventById(id);
   const room = event?.rooms.find((item) => item.id === roomId);
   if (!event || !room) return null;
+  if (event.status === "CLOSED" && input.status !== undefined && input.status !== "CLOSED") return null;
   if (input.name !== undefined) room.name = input.name;
   if (input.position !== undefined) room.position = input.position;
   if (input.status !== undefined) room.status = input.status;
@@ -205,12 +226,18 @@ export function patchDemoPhase(id: string, phaseId: string, input: { name?: stri
   const event = eventById(id);
   const phase = event?.phases.find((item) => item.id === phaseId);
   if (!event || !phase) return null;
+  if (event.status === "CLOSED" && input.status !== undefined && input.status !== "CLOSED") return null;
   if (input.status !== undefined && !canTransitionPhaseStatus(phase.status, input.status)) return null;
   const shouldResetRooms = input.status === "DRAFT" && phase.status !== "DRAFT";
   if (input.status === "LIVE") for (const other of event.phases) if (other.id !== phaseId && other.status === "LIVE") other.status = "READY";
   if (input.name !== undefined) phase.name = input.name;
   if (input.position !== undefined) phase.position = input.position;
   if (input.status !== undefined) phase.status = input.status;
+  if (phase.status === "LIVE" && event.status !== "LIVE" && event.status !== "CLOSED") {
+    const previousStatus = event.status;
+    event.status = "LIVE";
+    audit(id, "IDEATHON_STARTED", "IDEATHON", id, { previousStatus, status: event.status, phaseId });
+  }
   audit(id, phase.status === "LIVE" ? "PHASE_STARTED" : phase.status === "CLOSED" ? "PHASE_CLOSED" : "PHASE_UPDATED", "PHASE", phaseId, { phaseId, status: phase.status });
   if (shouldResetRooms) for (const room of event.rooms) if (room.phaseId === phaseId) {
     if (room.status !== "DRAFT") {

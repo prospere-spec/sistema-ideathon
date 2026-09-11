@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { and, count, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
-import { auditLogs, evaluations, phaseIdeas, phases, rooms } from "@/db/schema";
+import { auditLogs, evaluations, ideathons, phaseIdeas, phases, rooms } from "@/db/schema";
 import { requireAdminApi } from "@/lib/api-auth";
 import { isDemoMode } from "@/lib/demo-mode";
-import { deleteDemoPhase, getDemoPhase, patchDemoPhase } from "@/lib/demo-store";
+import { deleteDemoPhase, getDemoIdeathon, getDemoPhase, patchDemoPhase } from "@/lib/demo-store";
 import { canTransitionPhaseStatus, isPhaseStatus } from "@/lib/phase-status";
 
 type RouteContext = { params: Promise<{ id: string; phaseId: string }> };
@@ -31,27 +31,35 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (isDemoMode) {
     const current = getDemoPhase(id, phaseId);
     if (!current) return NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
+    if (getDemoIdeathon(id)?.status === "CLOSED" && status !== undefined && status !== "CLOSED") return NextResponse.json({ error: "O ideathon está encerrado. Não é possível iniciar ou reabrir suas fases." }, { status: 409 });
     if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return NextResponse.json({ error: "Transição de status da fase não permitida." }, { status: 409 });
     const updated = patchDemoPhase(id, phaseId, { name, position, status });
     return updated ? NextResponse.json({ data: updated }) : NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
   }
   const db = getDb();
-  const [current] = await db.select({ id: phases.id, name: phases.name, position: phases.position, status: phases.status }).from(phases).where(and(eq(phases.id, phaseId), eq(phases.ideathonId, id))).limit(1);
-  if (!current) return NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
-  if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return NextResponse.json({ error: "Transição de status da fase não permitida." }, { status: 409 });
-  const updates = { name: name ?? current.name, position: position ?? current.position, status: status ?? current.status, updatedAt: new Date() };
-  const shouldResetRooms = status === "DRAFT" && current.status !== "DRAFT";
   try {
-    const [updated] = await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
+      const [event] = await tx.select({ id: ideathons.id, status: ideathons.status }).from(ideathons).where(eq(ideathons.id, id)).for("update").limit(1);
+      if (!event) return { error: "Ideathon não encontrado.", status: 404 } as const;
+      if (event.status === "CLOSED" && status !== undefined && status !== "CLOSED") return { error: "O ideathon está encerrado. Não é possível iniciar ou reabrir suas fases.", status: 409 } as const;
+      const [current] = await tx.select({ id: phases.id, name: phases.name, position: phases.position, status: phases.status }).from(phases).where(and(eq(phases.id, phaseId), eq(phases.ideathonId, id))).for("update").limit(1);
+      if (!current) return { error: "Fase não encontrada.", status: 404 } as const;
+      if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return { error: "Transição de status da fase não permitida.", status: 409 } as const;
+      const updates = { name: name ?? current.name, position: position ?? current.position, status: status ?? current.status, updatedAt: new Date() };
+      const shouldResetRooms = status === "DRAFT" && current.status !== "DRAFT";
       const [phase] = await tx.update(phases).set(updates).where(eq(phases.id, phaseId)).returning();
       await tx.insert(auditLogs).values({ actorUserId: user.id, action: updates.status === "LIVE" ? "PHASE_STARTED" : updates.status === "CLOSED" ? "PHASE_CLOSED" : "PHASE_UPDATED", entityType: "PHASE", entityId: phaseId, metadata: { ideathonId: id, phaseId, status: updates.status } });
+      if (phase.status === "LIVE" && event.status !== "LIVE" && event.status !== "CLOSED") {
+        await tx.update(ideathons).set({ status: "LIVE", updatedAt: new Date() }).where(eq(ideathons.id, id));
+        await tx.insert(auditLogs).values({ actorUserId: user.id, action: "IDEATHON_STARTED", entityType: "IDEATHON", entityId: id, metadata: { ideathonId: id, phaseId, previousStatus: event.status, status: "LIVE" } });
+      }
       if (shouldResetRooms) {
         const resetRooms = await tx.update(rooms).set({ status: "DRAFT", updatedAt: new Date() }).where(and(eq(rooms.phaseId, phaseId), ne(rooms.status, "DRAFT"))).returning({ id: rooms.id });
         if (resetRooms.length) await tx.insert(auditLogs).values(resetRooms.map((room) => ({ actorUserId: user.id, action: "ROOM_UPDATED", entityType: "ROOM", entityId: room.id, metadata: { ideathonId: id, phaseId, status: "DRAFT" } })));
       }
-      return [phase];
+      return { data: phase } as const;
     });
-    return NextResponse.json({ data: updated });
+    return "error" in result ? NextResponse.json({ error: result.error }, { status: result.status }) : NextResponse.json(result);
   } catch (error) {
     console.error("Failed to update phase", error);
     return NextResponse.json({ error: "Não foi possível atualizar a fase. Verifique se já existe outra fase ao vivo ou com a mesma posição." }, { status: 409 });
