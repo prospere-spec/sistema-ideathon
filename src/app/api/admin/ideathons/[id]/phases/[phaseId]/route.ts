@@ -6,6 +6,7 @@ import { requireAdminApi } from "@/lib/api-auth";
 import { isDemoMode } from "@/lib/demo-mode";
 import { deleteDemoPhase, getDemoIdeathon, getDemoPhase, patchDemoPhase } from "@/lib/demo-store";
 import { canTransitionPhaseStatus, isPhaseStatus } from "@/lib/phase-status";
+import { hasValidPhaseDateRange, parsePhaseDates } from "@/lib/phase-dates";
 
 type RouteContext = { params: Promise<{ id: string; phaseId: string }> };
 
@@ -25,6 +26,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const position = input.position === undefined ? undefined : Number(input.position);
   const statusValue = input.status === undefined ? undefined : String(input.status);
   const status = statusValue === undefined || !isPhaseStatus(statusValue) ? undefined : statusValue;
+  const dates = parsePhaseDates(input);
+  if ("error" in dates) return NextResponse.json({ error: dates.error }, { status: 422 });
   if (name !== undefined && name.length < 2) return NextResponse.json({ error: "Informe um nome válido para a fase." }, { status: 422 });
   if (position !== undefined && (!Number.isInteger(position) || position < 0)) return NextResponse.json({ error: "A posição deve ser um inteiro não negativo." }, { status: 422 });
   if (statusValue !== undefined && !isPhaseStatus(statusValue)) return NextResponse.json({ error: "Status de fase inválido." }, { status: 422 });
@@ -33,7 +36,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     if (!current) return NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
     if (getDemoIdeathon(id)?.status === "CLOSED" && status !== undefined && status !== "CLOSED") return NextResponse.json({ error: "O ideathon está encerrado. Não é possível iniciar ou reabrir suas fases." }, { status: 409 });
     if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return NextResponse.json({ error: "Transição de status da fase não permitida." }, { status: 409 });
-    const updated = patchDemoPhase(id, phaseId, { name, position, status });
+    const startsAt = dates.data.startsAt === undefined ? current.startsAt : dates.data.startsAt;
+    const endsAt = dates.data.endsAt === undefined ? current.endsAt : dates.data.endsAt;
+    if (!hasValidPhaseDateRange(startsAt ? new Date(startsAt) : null, endsAt ? new Date(endsAt) : null)) return NextResponse.json({ error: "O término da fase deve ser posterior ao início." }, { status: 422 });
+    const updated = patchDemoPhase(id, phaseId, { name, position, status, startsAt: dates.data.startsAt, endsAt: dates.data.endsAt });
     return updated ? NextResponse.json({ data: updated }) : NextResponse.json({ error: "Fase não encontrada." }, { status: 404 });
   }
   const db = getDb();
@@ -42,10 +48,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       const [event] = await tx.select({ id: ideathons.id, status: ideathons.status }).from(ideathons).where(eq(ideathons.id, id)).for("update").limit(1);
       if (!event) return { error: "Ideathon não encontrado.", status: 404 } as const;
       if (event.status === "CLOSED" && status !== undefined && status !== "CLOSED") return { error: "O ideathon está encerrado. Não é possível iniciar ou reabrir suas fases.", status: 409 } as const;
-      const [current] = await tx.select({ id: phases.id, name: phases.name, position: phases.position, status: phases.status }).from(phases).where(and(eq(phases.id, phaseId), eq(phases.ideathonId, id))).for("update").limit(1);
+      const [current] = await tx.select({ id: phases.id, name: phases.name, position: phases.position, status: phases.status, startsAt: phases.startsAt, endsAt: phases.endsAt }).from(phases).where(and(eq(phases.id, phaseId), eq(phases.ideathonId, id))).for("update").limit(1);
       if (!current) return { error: "Fase não encontrada.", status: 404 } as const;
       if (status !== undefined && !canTransitionPhaseStatus(current.status, status)) return { error: "Transição de status da fase não permitida.", status: 409 } as const;
-      const updates = { name: name ?? current.name, position: position ?? current.position, status: status ?? current.status, updatedAt: new Date() };
+      const startsAt = dates.data.startsAt === undefined ? current.startsAt : dates.data.startsAt;
+      const endsAt = dates.data.endsAt === undefined ? current.endsAt : dates.data.endsAt;
+      if (!hasValidPhaseDateRange(startsAt, endsAt)) return { error: "O término da fase deve ser posterior ao início.", status: 422 } as const;
+      const updates = { name: name ?? current.name, position: position ?? current.position, status: status ?? current.status, startsAt, endsAt, updatedAt: new Date() };
       const shouldResetRooms = status === "DRAFT" && current.status !== "DRAFT";
       const [phase] = await tx.update(phases).set(updates).where(eq(phases.id, phaseId)).returning();
       await tx.insert(auditLogs).values({ actorUserId: user.id, action: updates.status === "LIVE" ? "PHASE_STARTED" : updates.status === "CLOSED" ? "PHASE_CLOSED" : "PHASE_UPDATED", entityType: "PHASE", entityId: phaseId, metadata: { ideathonId: id, phaseId, status: updates.status } });

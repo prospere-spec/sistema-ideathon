@@ -209,20 +209,20 @@ export function getDemoPhase(id: string, phaseId: string) {
   return eventById(id)?.phases.find((phase) => phase.id === phaseId) || null;
 }
 
-export function createDemoPhase(id: string, input: { name: string; position?: number }) {
+export function createDemoPhase(id: string, input: { name: string; position?: number; startsAt?: Date | null; endsAt?: Date | null }) {
   const event = eventById(id);
   if (!event) return null;
   const current = state();
   const sequence = current.nextPhase++;
   const phaseId = `demo-phase-${sequence}`;
-  const phase: DemoPhase = { id: phaseId, name: input.name, position: input.position ?? event.phases.length, status: "DRAFT", startsAt: null, endsAt: null };
+  const phase: DemoPhase = { id: phaseId, name: input.name, position: input.position ?? event.phases.length, status: "DRAFT", startsAt: input.startsAt?.toISOString() || null, endsAt: input.endsAt?.toISOString() || null };
   event.phases.push(phase);
   current.criteria[phaseId] = [{ id: `demo-criterion-${sequence}-impact`, name: "Impacto", description: "Potencial de impacto da solução.", position: 1, weight: 40 }, { id: `demo-criterion-${sequence}-innovation`, name: "Inovação", description: "Originalidade da proposta.", position: 2, weight: 35 }, { id: `demo-criterion-${sequence}-feasibility`, name: "Viabilidade", description: "Capacidade de execução.", position: 3, weight: 25 }];
   audit(id, "PHASE_CREATED", "PHASE", phaseId, { phaseId });
   return phase;
 }
 
-export function patchDemoPhase(id: string, phaseId: string, input: { name?: string; position?: number; status?: DemoStatus }) {
+export function patchDemoPhase(id: string, phaseId: string, input: { name?: string; position?: number; status?: DemoStatus; startsAt?: Date | null; endsAt?: Date | null }) {
   const event = eventById(id);
   const phase = event?.phases.find((item) => item.id === phaseId);
   if (!event || !phase) return null;
@@ -233,6 +233,8 @@ export function patchDemoPhase(id: string, phaseId: string, input: { name?: stri
   if (input.name !== undefined) phase.name = input.name;
   if (input.position !== undefined) phase.position = input.position;
   if (input.status !== undefined) phase.status = input.status;
+  if (input.startsAt !== undefined) phase.startsAt = input.startsAt?.toISOString() || null;
+  if (input.endsAt !== undefined) phase.endsAt = input.endsAt?.toISOString() || null;
   if (phase.status === "LIVE" && event.status !== "LIVE" && event.status !== "CLOSED") {
     const previousStatus = event.status;
     event.status = "LIVE";

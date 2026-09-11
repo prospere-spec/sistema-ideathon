@@ -1,20 +1,24 @@
-"use client";
+import { eq } from "drizzle-orm";
+import { notFound, redirect } from "next/navigation";
+import { getDb } from "@/db";
+import { ideathons } from "@/db/schema";
 
-import { useEffect, useState } from "react";
-import { ArrowRight, CalendarDays, ExternalLink, LoaderCircle, Sparkles } from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
+type PageProps = { params: Promise<{ id: string }> };
 
-type PublicData = { name: string; description: string; status: string; timezone: string; startsAt: string | null; endsAt: string | null; phases: Array<{ id: string; name: string; status: string; position: number }>; ideas: Array<{ id: string; name: string; solution: string; category: string | null; teamName: string; phaseName: string | null }> };
+export default async function LegacyPublicIdeathonPage({ params }: PageProps) {
+  const { id } = await params;
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id,
+    )
+  )
+    notFound();
+  const [event] = await getDb()
+    .select({ slug: ideathons.slug })
+    .from(ideathons)
+    .where(eq(ideathons.id, id))
+    .limit(1);
 
-export default function PublicIdeathonPage() {
-  const { id } = useParams<{ id: string }>();
-  const [event, setEvent] = useState<PublicData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  useEffect(() => { fetch(`/api/public/ideathons/${String(id)}`, { cache: "no-store" }).then(async (response) => { const payload = await response.json(); if (!response.ok) throw new Error(payload.error || "Ideathon não encontrado."); setEvent(payload.data); }).catch((loadError: Error) => setError(loadError.message)).finally(() => setLoading(false)); }, [id]);
-  if (loading) return <main className="flex min-h-screen items-center justify-center bg-primary text-lime"><LoaderCircle className="size-7 animate-spin" /></main>;
-  if (!event) return <main className="flex min-h-screen items-center justify-center bg-surface px-6"><p className="rounded-md bg-danger-soft px-5 py-4 text-sm font-semibold text-danger">{error || "Ideathon não encontrado."}</p></main>;
-  return <main className="min-h-screen bg-surface text-ink"><header className="border-b border-white/10 bg-primary text-white"><div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8"><Link href="/" className="text-xl font-bold tracking-[-0.05em] text-lime">Revvolução</Link><Badge tone="lime">{event.status === "LIVE" ? "Ao vivo" : event.status}</Badge></div></header><section className="bg-primary px-5 pb-20 pt-16 text-white sm:px-8 sm:pt-24"><div className="mx-auto max-w-6xl"><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-lime"><Sparkles className="size-4" />Ideathon</p><h1 className="mt-5 max-w-4xl text-4xl font-bold tracking-[-0.06em] sm:text-6xl">{event.name}</h1><p className="mt-6 max-w-2xl text-lg leading-8 text-white/70">{event.description || "Um espaço para ideias que transformam desafios em soluções."}</p>{event.startsAt ? <p className="mt-7 flex items-center gap-2 text-sm font-semibold text-white/70"><CalendarDays className="size-4 text-lime" />{new Date(event.startsAt).toLocaleDateString("pt-BR")} {event.endsAt ? `até ${new Date(event.endsAt).toLocaleDateString("pt-BR")}` : ""}</p> : null}</div></section><div className="mx-auto grid w-full max-w-6xl gap-6 px-5 py-10 sm:px-8 lg:grid-cols-[1fr_320px]"><section id="ideas"><div className="flex items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-lime-deep">Projetos participantes</p><h2 className="mt-2 text-3xl font-bold tracking-[-0.05em] text-ink">Conheça as ideias</h2></div><span className="text-sm text-ink-muted">{event.ideas.length} projetos</span></div><div className="mt-6 grid gap-4 sm:grid-cols-2">{event.ideas.map((idea) => <article key={idea.id} className="rounded-lg border border-outline/45 bg-white p-5 shadow-card"><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-bold tracking-[-0.03em] text-ink">{idea.name}</h3>{idea.category ? <span className="rounded-full bg-surface-container px-2.5 py-1 text-[11px] font-semibold text-ink-muted">{idea.category}</span> : null}</div><p className="mt-3 text-sm leading-6 text-ink-muted">{idea.solution}</p><p className="mt-5 text-xs font-semibold text-ink-muted">Equipe {idea.teamName}{idea.phaseName ? ` · ${idea.phaseName}` : ""}</p></article>)}{!event.ideas.length ? <p className="col-span-full rounded-lg bg-white p-10 text-center text-sm text-ink-muted">Os projetos serão publicados quando estiverem disponíveis.</p> : null}</div></section><aside className="h-fit rounded-lg bg-primary p-6 text-white shadow-card"><p className="text-xs font-bold uppercase tracking-[0.14em] text-white/50">Cronograma</p><div className="mt-5 space-y-4">{event.phases.map((phase) => <div key={phase.id} className="flex gap-3"><span className="mt-1 size-2 shrink-0 rounded-full bg-lime" /><div><p className="font-semibold text-white">{phase.name}</p><p className="mt-1 text-xs text-white/55">{phase.status === "LIVE" ? "Em andamento" : phase.status === "CLOSED" ? "Encerrada" : "Próxima etapa"}</p></div></div>)}{!event.phases.length ? <p className="text-sm text-white/60">Cronograma em breve.</p> : null}</div><a href="#ideas" className="mt-7 inline-flex items-center gap-2 text-sm font-bold text-lime">Ver projetos <ArrowRight className="size-4" /></a></aside></div><footer className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 pb-10 text-xs text-ink-muted sm:px-8"><span>Powered by Revvolução</span><a href="mailto:admin@revvolucao.com" className="inline-flex items-center gap-1 hover:text-ink">Contato <ExternalLink className="size-3" /></a></footer></main>;
+  if (!event) notFound();
+  redirect(`/ideathons/${encodeURIComponent(event.slug)}`);
 }
