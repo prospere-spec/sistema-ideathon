@@ -56,12 +56,14 @@ test("avaliador salva, envia e repete uma avaliação no modo demo", async ({ pa
   await page.getByRole("button", { name: "Enviar avaliação" }).click();
   const submitPayload = await (await submitResponsePromise).json();
   expect(submitPayload.data.idempotent).toBe(false);
+  await expect(page).toHaveURL(/\/avaliador$/);
   await expect(page.getByRole("status")).toContainText("Avaliação enviada com sucesso.");
+  await expect(page.getByRole("heading", { name: "Olá, Avaliador Demo" })).toBeVisible();
 
   const repeatedPayload = await page.evaluate(async ({ evaluationId, scores, feedback }) => {
     const response = await fetch(`/api/evaluations/${evaluationId}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scores, feedback }) });
     return response.json();
   }, { evaluationId: submitPayload.data.evaluationId, scores: submitPayload.data.scores, feedback: "Tentativa repetida" });
   expect(repeatedPayload.data.idempotent).toBe(true);
-  await expect(page.getByRole("button", { name: "Enviar avaliação" })).toBeDisabled();
+  await expect(page.getByText("Avaliação enviada", { exact: true })).toBeVisible();
 });
