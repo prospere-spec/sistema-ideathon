@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CircleHelp, LogOut, Menu, Radio, Search, Settings, X } from "lucide-react";
+import { Bell, CircleHelp, LogOut, Menu, Radio, Search, Settings, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -35,7 +35,7 @@ export function AppShell({ children, activeSection, navigation = "panel" }: { ch
     { href: `/admin/ideathons/${ideathonId}/auditoria`, label: "Auditoria" },
   ] : [];
   const notificationHref = navigation === "evaluator" ? "/avaliador" : "/admin";
-  const notificationCopy = navigation === "evaluator" ? "Você tem avaliações pendentes para concluir." : "Você tem avaliações pendentes para acompanhar.";
+  const notificationCopy = navigation === "evaluator" ? "Há avaliações pendentes para concluir." : "Há avaliações pendentes nos ideathons em andamento.";
   const handleLogout = () => {
     if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") document.cookie = "ideathon-demo-role=; Max-Age=0; Path=/";
     void signOut({ callbackUrl: "/login" });
@@ -57,7 +57,7 @@ export function AppShell({ children, activeSection, navigation = "panel" }: { ch
             <div className="relative"><button type="button" onClick={() => setNotificationsOpen((open) => !open)} className={`relative rounded-md p-2 ${darkHeader ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-muted hover:bg-surface-container hover:text-ink"}`} aria-label="Notificações" aria-expanded={notificationsOpen} aria-controls="notifications-popover"><Bell className="size-5" /><span className={`absolute right-2 top-1.5 size-2 rounded-full bg-danger ring-2 ${darkHeader ? "ring-black" : "ring-surface"}`} /></button>{notificationsOpen ? <div id="notifications-popover" role="status" className="absolute right-0 top-12 w-72 rounded-lg border border-outline/40 bg-white p-4 text-ink shadow-popover"><p className="text-sm font-bold">Notificações</p><p className="mt-2 text-xs leading-5 text-ink-muted">{notificationCopy}</p><Link href={notificationHref} onClick={() => setNotificationsOpen(false)} className="mt-3 inline-flex text-xs font-bold text-lime-deep hover:underline">Abrir {navigation === "evaluator" ? "avaliações" : "dashboard"}</Link></div> : null}</div>
             <a href="mailto:admin@revvolucao.com" className={`hidden rounded-md p-2 sm:block ${darkHeader ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-muted hover:bg-surface-container hover:text-ink"}`} aria-label="Ajuda"><CircleHelp className="size-5" /></a>
             <Link href="/conta/senha" className={`hidden rounded-md p-2 sm:block ${darkHeader ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-ink-muted hover:bg-surface-container hover:text-ink"}`} aria-label="Configurações da conta"><Settings className="size-5" /></Link>
-            <button type="button" onClick={handleLogout} className="group ml-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-primary-container text-xs font-bold text-lime shadow-sm" aria-label="Sair da conta" title="Sair"><span className="group-hover:hidden">DP</span><LogOut className="hidden size-4 group-hover:block" /></button>
+            <button type="button" onClick={handleLogout} className="group ml-1 flex size-9 items-center justify-center rounded-full border-2 border-white bg-primary-container text-lime shadow-sm" aria-label="Sair da conta" title="Sair"><UserRound className="size-4 group-hover:hidden" /><LogOut className="hidden size-4 group-hover:block" /></button>
           </div>
         </div>
       </header>

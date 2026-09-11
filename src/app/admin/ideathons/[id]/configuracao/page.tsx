@@ -12,7 +12,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 type Criterion = { id: string; name: string; description: string; position: number; weight: number };
 type ScaleLevel = { value: number; label: string; description: string };
 type Phase = { id: string; name: string; status: string };
-const defaultScale: ScaleLevel[] = [{ value: 1, label: "Fraco", description: "Muito abaixo" }, { value: 2, label: "Abaixo", description: "Abaixo do esperado" }, { value: 3, label: "Adequado", description: "Atende ao esperado" }, { value: 4, label: "Muito bom", description: "Acima do esperado" }, { value: 5, label: "Excelente", description: "Referência" }];
+const defaultScale: ScaleLevel[] = [{ value: 1, label: "Insatisfatório", description: "Muito abaixo do esperado" }, { value: 2, label: "Abaixo do esperado", description: "Abaixo do esperado" }, { value: 3, label: "Adequado", description: "Atende ao esperado" }, { value: 4, label: "Muito bom", description: "Acima do esperado" }, { value: 5, label: "Excelente", description: "Referência" }];
 
 export default function EvaluationConfigurationPage() {
   const { id } = useParams<{ id: string }>();

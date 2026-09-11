@@ -137,7 +137,7 @@ export function LoginForm() {
             <div className="flex gap-2"><span className="size-2 rounded-full bg-white/20" /><span className="size-2 rounded-full bg-white/20" /><span className="size-2 rounded-full bg-white/20" /></div>
           </div>
           <div className="mt-7 grid grid-cols-3 gap-3">
-            {["12", "843", "48"].map((value, index) => <div key={value} className="rounded-lg border border-white/10 bg-white/[0.045] p-4"><span className="block text-[9px] uppercase tracking-[0.15em] text-white/45">{["Eventos", "Ideias", "Avaliadores"][index]}</span><span className="mt-4 block text-3xl font-bold text-white/80">{value}</span></div>)}
+            {["Eventos", "Ideias", "Avaliadores"].map((label) => <div key={label} className="rounded-lg border border-white/10 bg-white/[0.045] p-4"><span className="block text-[9px] uppercase tracking-[0.15em] text-white/45">{label}</span><span className="mt-4 block text-sm font-semibold text-white/80">Organize e acompanhe</span></div>)}
           </div>
           <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.04] p-5">
             <div className="mb-6 flex items-center justify-between"><span className="text-sm font-bold text-white/75">Visão geral de ideathons</span><span className="h-2 w-16 rounded-full bg-lime/60" /></div>
@@ -150,8 +150,8 @@ export function LoginForm() {
 
         <div className="absolute bottom-12 left-10 right-10 rounded-xl border border-white/20 bg-white/[0.1] p-6 shadow-2xl backdrop-blur-xl xl:bottom-16 xl:left-20 xl:right-20">
           <div className="mb-4 flex items-center gap-3 text-lime"><Rocket className="size-6" /><span className="text-sm font-bold uppercase tracking-[0.12em]">Ideathon Management</span></div>
-          <h2 className="max-w-lg text-2xl font-bold leading-tight tracking-[-0.04em] text-white sm:text-3xl">Acelerando a Inovação Estruturada.</h2>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">A plataforma definitiva para gerenciar equipes, avaliar ideias e transformar conceitos de alto impacto em realidade. Organização rigorosa encontra velocidade de execução.</p>
+          <h2 className="max-w-lg text-2xl font-bold leading-tight tracking-[-0.04em] text-white sm:text-3xl">Ideathons organizados, avaliações claras.</h2>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">Gerencie ideathons, distribua ideias e acompanhe avaliações em um só lugar.</p>
         </div>
       </section>
     </main>

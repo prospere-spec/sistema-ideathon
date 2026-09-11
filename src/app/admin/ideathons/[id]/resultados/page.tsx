@@ -98,7 +98,7 @@ export default function RankingPage() {
   });
   const summary = result?.summary;
   const phaseName = result?.phase.name || phases.find((phase) => phase.id === phaseId)?.name || "Selecione uma fase";
-  const connectionLabel = connection === "offline" ? "Sem conexão · última atualização disponível" : connection === "reconnecting" ? "Reconectando..." : "Atualização automática a cada 5s";
+  const connectionLabel = connection === "offline" ? "Sem conexão · última atualização disponível" : connection === "reconnecting" ? "Reconectando..." : "Atualização automática a cada 5 s";
 
   function exportResults() {
     if (!result) return;
@@ -116,7 +116,7 @@ export default function RankingPage() {
       link.download = `ranking-${ideathonId}-${result.phase.id}-${view === "general" ? "geral" : "por-sala"}.csv`;
       link.click();
       URL.revokeObjectURL(url);
-      setExportNotice(`Ranking ${view === "general" ? "geral" : "por sala"} exportado: ${exportRows.length} ideia(s) da fase ${result.phase.name}.`);
+      setExportNotice(`Ranking ${view === "general" ? "geral" : "por sala"} exportado: ${exportRows.length} ${exportRows.length === 1 ? "ideia" : "ideias"} da fase ${result.phase.name}.`);
     } catch (error) {
       setExportNotice(error instanceof Error ? error.message : "Não foi possível exportar o ranking.");
     }
@@ -128,7 +128,7 @@ export default function RankingPage() {
         <section className="flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
           <div>
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-lime-deep">{connection === "offline" ? <WifiOff className="size-3.5" /> : <Wifi className="size-3.5" />}{connectionLabel}</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-[-0.055em] text-ink sm:text-4xl">Ranking em Tempo Real</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-[-0.055em] text-ink sm:text-4xl">Ranking em tempo real</h1>
             <p className="mt-2 text-base text-ink-muted">{phaseName}{summary?.updatedAt ? ` · atualizado ${new Date(summary.updatedAt).toLocaleTimeString("pt-BR")}` : ""}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -157,15 +157,15 @@ export default function RankingPage() {
         {exportNotice ? <p className="rounded-md bg-lime/30 px-4 py-3 text-sm font-semibold text-lime-deep" role="status">{exportNotice}</p> : null}
         {filtersOpen ? <section id="ranking-filters" className="flex flex-col gap-3 rounded-lg bg-white p-4 shadow-card sm:flex-row sm:items-end" aria-label="Filtros do ranking">
           <label className="flex-1 text-xs font-bold text-ink-muted">Buscar ideia, equipe ou sala<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ex: EcoTrack, Equipe Horizonte ou Sala 21" className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40" /></label>
-          <label className="w-full text-xs font-bold text-ink-muted sm:w-48">Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "ALL" | RankingState)} className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40"><option value="ALL">Todos</option><option value="PENDING">Pendentes</option><option value="PARTIAL">Em progresso</option><option value="COMPLETE">Completas</option></select></label>
+          <label className="w-full text-xs font-bold text-ink-muted sm:w-48">Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "ALL" | RankingState)} className="mt-2 min-h-11 w-full rounded-md border border-outline/70 bg-white px-3.5 text-sm font-normal text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40"><option value="ALL">Todos</option><option value="PENDING">Sem avaliações</option><option value="PARTIAL">Em andamento</option><option value="COMPLETE">Concluídas</option></select></label>
         </section> : null}
 
         {loading ? <div role="status" className="rounded-lg bg-white px-6 py-14 text-center text-sm text-ink-muted"><LoaderCircle className="mx-auto mb-3 size-5 animate-spin" />Carregando ranking da fase...</div> : !result ? <p className="rounded-lg bg-white p-8 text-center text-sm text-ink-muted">Os resultados desta fase ainda não foram carregados. A atualização será tentada novamente automaticamente.</p> : <>
           <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumo geral da fase">
             <article className="rounded-lg bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Ideias na fase</p><p className="mt-5 text-4xl font-bold tabular-nums tracking-[-0.06em] text-ink">{result.summary.totalIdeas}</p></article>
             <article className="rounded-lg bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Média geral da fase</p><p className="mt-5 text-4xl font-bold tabular-nums tracking-[-0.06em] text-ink">{result.summary.averageScore?.toFixed(2) ?? "--"}</p></article>
-            <article className="rounded-lg bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Avaliações concluídas</p><p className="mt-5 text-4xl font-bold tabular-nums tracking-[-0.06em] text-ink">{result.summary.completionPercent}%</p><ProgressBar value={result.summary.completionPercent} showLabel={false} className="mt-4" /></article>
-            <article className="rounded-lg bg-primary p-5 text-white shadow-card"><p className="text-sm font-semibold text-white/60">Recebidas / esperadas</p><p className="mt-5 text-4xl font-bold tabular-nums tracking-[-0.06em] text-lime">{result.summary.receivedEvaluations} / {result.summary.expectedEvaluations}</p></article>
+            <article className="rounded-lg bg-white p-5 shadow-card"><p className="text-sm font-semibold text-ink-muted">Percentual de avaliações concluídas</p><p className="mt-5 text-4xl font-bold tabular-nums tracking-[-0.06em] text-ink">{result.summary.completionPercent}%</p><ProgressBar value={result.summary.completionPercent} showLabel={false} className="mt-4" /></article>
+            <article className="rounded-lg bg-primary p-5 text-white shadow-card"><p className="text-sm font-semibold text-white/60">Avaliações recebidas / esperadas</p><p className="mt-5 text-4xl font-bold tabular-nums tracking-[-0.06em] text-lime">{result.summary.receivedEvaluations} / {result.summary.expectedEvaluations}</p></article>
           </section>
 
           {view === "general" ? <RankingTable title="Classificação Geral" description={`${result.phase.name} · Todas as ideias da fase, reunindo todas as salas.`} rows={filterRows(result.data)} summary={result.summary} showRoom /> : <div className="space-y-5">

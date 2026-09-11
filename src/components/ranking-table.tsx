@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import type { RankingResultRow, RankingSummary } from "@/lib/ranking-results";
 
-export const rankingStateLabels: Record<string, string> = { PENDING: "Pendente", PARTIAL: "Em progresso", COMPLETE: "Completa" };
+export const rankingStateLabels: Record<string, string> = { PENDING: "Sem avaliações", PARTIAL: "Avaliações em andamento", COMPLETE: "Todas as avaliações recebidas" };
 
 export function RankingTable({ title, description, rows, summary, showRoom = false }: {
   title: string;
@@ -20,15 +20,15 @@ export function RankingTable({ title, description, rows, summary, showRoom = fal
           <p className="mt-1 text-sm text-ink-muted">{description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge tone="lime"><CheckCircle2 className="mr-1 size-3.5" />{rows.filter((row) => row.state === "COMPLETE").length} completas</Badge>
-          <Badge tone="amber"><Clock3 className="mr-1 size-3.5" />{rows.filter((row) => row.state === "PARTIAL").length} parciais</Badge>
+          <Badge tone="lime"><CheckCircle2 className="mr-1 size-3.5" />{rows.filter((row) => row.state === "COMPLETE").length} concluídas</Badge>
+          <Badge tone="amber"><Clock3 className="mr-1 size-3.5" />{rows.filter((row) => row.state === "PARTIAL").length} em andamento</Badge>
         </div>
       </header>
       {!showRoom ? <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-outline/30 bg-surface-low/60 px-5 py-3 text-sm text-ink-muted sm:px-7">
         <span><strong className="tabular-nums text-ink">{summary.totalIdeas}</strong> ideias</span>
         <span>Média: <strong className="tabular-nums text-ink">{summary.averageScore?.toFixed(2) ?? "--"}</strong></span>
-        <span>Avaliações: <strong className="tabular-nums text-ink">{summary.receivedEvaluations} / {summary.expectedEvaluations}</strong></span>
-        <span className="font-semibold text-lime-deep">{summary.completionPercent}% concluído</span>
+        <span>Avaliações recebidas / esperadas: <strong className="tabular-nums text-ink">{summary.receivedEvaluations} / {summary.expectedEvaluations}</strong></span>
+        <span className="font-semibold text-lime-deep">{summary.completionPercent}% das avaliações concluídas</span>
       </div> : null}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] border-collapse text-left">
@@ -61,7 +61,7 @@ export function RankingTable({ title, description, rows, summary, showRoom = fal
               <td className="min-w-36 px-5 py-4"><ProgressBar value={row.completionPercent} /></td>
               <td className="px-5 py-4 text-right text-lg font-bold tabular-nums text-ink sm:px-7">{row.finalScore?.toFixed(2) ?? "--"}</td>
             </tr>)}
-            {!rows.length ? <tr><td colSpan={showRoom ? 8 : 7} className="px-6 py-12 text-center text-sm text-ink-muted">{summary.totalIdeas ? "Nenhuma ideia corresponde aos filtros." : "Nenhuma ideia para classificar neste recorte."}</td></tr> : null}
+            {!rows.length ? <tr><td colSpan={showRoom ? 8 : 7} className="px-6 py-12 text-center text-sm text-ink-muted">{summary.totalIdeas ? "Nenhuma ideia corresponde aos filtros." : "Não há ideias nesta fase para exibir no ranking."}</td></tr> : null}
           </tbody>
         </table>
       </div>

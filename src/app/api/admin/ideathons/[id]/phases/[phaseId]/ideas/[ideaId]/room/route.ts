@@ -16,7 +16,7 @@ export async function PUT(request: Request, { params }: RouteContext) {
   } catch {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 422 });
   }
-  if (!body || typeof body !== "object" || !("roomId" in body)) return NextResponse.json({ error: "Informe a sala ou null para deixar a ideia sem sala." }, { status: 422 });
+  if (!body || typeof body !== "object" || !("roomId" in body)) return NextResponse.json({ error: "Selecione uma sala ou deixe a ideia sem sala." }, { status: 422 });
   const input = body as Record<string, unknown>;
   const rawRoomId = input.roomId;
   if (rawRoomId !== null && typeof rawRoomId !== "string") return NextResponse.json({ error: "O identificador da sala é inválido." }, { status: 422 });

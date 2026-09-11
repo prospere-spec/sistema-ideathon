@@ -38,7 +38,7 @@ export function PhaseIdeasPage({ ideathonId, phaseId }: { ideathonId: string; ph
       .then(async (response) => {
         const payload = await readJsonResponse<PhaseIdeasPayload>(response);
         if (!response.ok) throw new Error(payload.error || "Não foi possível carregar as ideias.");
-        if (!payload.phase || !payload.data || !payload.rooms) throw new Error("A resposta da API de ideias está incompleta.");
+        if (!payload.phase || !payload.data || !payload.rooms) throw new Error("Não foi possível carregar os dados necessários. Atualize a página e tente novamente.");
         return payload as PhaseIdeasPayload;
       })
       .then((payload) => {
@@ -66,7 +66,7 @@ export function PhaseIdeasPage({ ideathonId, phaseId }: { ideathonId: string; ph
         return;
       }
       if (!payload.data) {
-        setError("A resposta da API de distribuição está incompleta.");
+        setError("Não foi possível atualizar a distribuição. Atualize a página e tente novamente.");
         return;
       }
       const data = payload.data;
@@ -102,7 +102,7 @@ export function PhaseIdeasPage({ ideathonId, phaseId }: { ideathonId: string; ph
         return;
       }
       if (!payload.data) {
-        setError("A resposta da API de ordem está incompleta.");
+        setError("Não foi possível atualizar a ordem. Atualize a página e tente novamente.");
         return;
       }
       const data = payload.data;

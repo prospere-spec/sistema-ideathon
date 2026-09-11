@@ -54,7 +54,7 @@ export function ChangePasswordForm() {
         return;
       }
 
-      setSuccess("Senha atualizada com sucesso. Redirecionando para o dashboard...");
+      setSuccess("Senha atualizada. Você será redirecionado para seu painel.");
       window.setTimeout(() => {
         router.replace(result.role === "ADMIN" ? "/admin" : "/avaliador");
         router.refresh();
@@ -69,7 +69,7 @@ export function ChangePasswordForm() {
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
       <div>
-        <label htmlFor="current-password" className="mb-2 block text-sm font-semibold text-ink">Senha temporária atual</label>
+        <label htmlFor="current-password" className="mb-2 block text-sm font-semibold text-ink">Senha atual</label>
         <input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="min-h-12 w-full rounded-md border border-outline/70 bg-white px-4 text-base text-ink focus:border-lime focus:outline-none focus:ring-2 focus:ring-lime/40" required />
       </div>
       <div>

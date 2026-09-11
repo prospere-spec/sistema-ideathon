@@ -290,7 +290,7 @@ export default function EvaluatorVotingPage() {
                 </div>
               </section>
               <section className="rounded-lg border border-black/[0.04] bg-white p-5 shadow-card sm:p-7" aria-labelledby="feedback-title">
-                <h2 id="feedback-title" className="text-xl font-medium tracking-[-0.03em] text-ink">Comentários / Feedback</h2>
+                <h2 id="feedback-title" className="text-xl font-medium tracking-[-0.03em] text-ink">Comentários para a equipe</h2>
                 <p className="mt-2 text-sm leading-6 text-ink-muted sm:text-base">Destaque pontos fortes e áreas de melhoria.</p>
                 <div className="mt-5"><label htmlFor="feedback" className="sr-only">Escreva suas observações</label><textarea id="feedback" disabled={readOnly} value={feedback} onChange={(event) => setFeedbackValue(event.target.value)} placeholder="Escreva suas observações aqui..." className="min-h-48 w-full resize-y rounded-md border border-outline/50 bg-surface-low px-5 py-4 text-base leading-7 text-ink placeholder:text-ink-muted/70 focus:border-lime focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime/40 disabled:cursor-not-allowed disabled:opacity-70" /></div>
               </section>
