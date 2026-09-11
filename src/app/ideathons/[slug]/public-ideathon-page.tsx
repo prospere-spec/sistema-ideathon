@@ -86,7 +86,13 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
     <main className="min-h-screen bg-surface text-ink">
       <header className="border-b border-white/10 bg-primary text-white">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <Link href="/" className="text-xl font-black tracking-[-0.08em] text-danger" aria-label="Revvolução, página inicial">Revvolução</Link>
+          <Link href="/" className="inline-flex min-w-0 items-center py-2" aria-label="Revvolução, página inicial">
+            <img
+              src="/brand/logo-revvolucao.png"
+              alt="Revvolução"
+              className="h-auto w-full max-w-[10rem] object-contain object-left sm:max-w-[12rem]"
+            />
+          </Link>
           <Badge tone="lime">
             {event.status === "LIVE" ? "Ao vivo" : event.status}
           </Badge>
@@ -200,7 +206,7 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
             ) : null}
           </div>
         </section>
-        <aside className="self-start rounded-2xl bg-black p-6 text-white shadow-card">
+        <aside className="self-start rounded-2xl bg-black p-6 text-white shadow-card lg:sticky lg:top-6">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/55">
             Cronograma
           </p>
