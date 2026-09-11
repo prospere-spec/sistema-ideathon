@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  ArrowRight,
   CalendarDays,
   ExternalLink,
   FileText,
@@ -80,13 +79,13 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
           <Link
             href="/"
-            className="block w-36"
+            className="relative h-8 w-36 overflow-hidden"
             aria-label="Revvolução, página inicial"
           >
             <img
               src="/brand/logo-revvolucao.png"
               alt="Revvolução"
-              className="h-auto w-full object-contain"
+              className="absolute left-0 top-1/2 h-[72px] max-w-none -translate-y-1/2"
             />
           </Link>
           <Badge tone="lime">
@@ -205,39 +204,28 @@ export function PublicIdeathonPage({ slug }: { slug: string }) {
             ) : null}
           </div>
         </section>
-        <aside className="rounded-lg border border-outline/45 bg-white p-5 shadow-card">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-lime-deep">
-            Jornada do ideathon
+        <aside className="self-start rounded-2xl bg-black p-6 text-white shadow-card">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/55">
+            Cronograma
           </p>
-          <h2 className="mt-2 text-xl font-bold tracking-[-0.04em] text-ink">
-            Fases
-          </h2>
-          <ol className="mt-5 space-y-4">
+          <ol className="mt-6 space-y-5">
             {event.phases.map((phase) => (
               <li key={phase.id} className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-low text-xs font-bold text-ink">
-                  {phase.position + 1}
-                </span>
+                <span className="mt-1.5 size-2 shrink-0 rounded-full bg-lime" />
                 <div>
-                  <p className="text-sm font-bold text-ink">{phase.name}</p>
-                  <p className="mt-0.5 text-xs text-ink-muted">
-                    {phase.status === "LIVE" ? "Ao vivo" : phase.status}
+                  <p className="text-base font-bold text-white">{phase.name}</p>
+                  <p className="mt-0.5 text-sm text-white/55">
+                    {phase.status === "CLOSED" ? "Encerrada" : phase.status === "READY" ? "Próxima etapa" : phase.status === "LIVE" ? "Ao vivo" : "Em breve"}
                   </p>
                 </div>
               </li>
             ))}
           </ol>
           {event.phases.length === 0 ? (
-            <p className="mt-5 text-sm text-ink-muted">
+            <p className="mt-5 text-sm text-white/55">
               As fases serão divulgadas em breve.
             </p>
           ) : null}
-          <a
-            href="#ideas"
-            className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-indigo-deep hover:text-indigo"
-          >
-            Ver projetos <ArrowRight className="size-4" />
-          </a>
         </aside>
       </div>
       <Modal
